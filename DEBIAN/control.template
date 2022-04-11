@@ -1,0 +1,10 @@
+Package: work
+Version: REPLACE_VERSION
+Section: base
+Priority: optional
+Architecture: all
+Build-Depends: dh-python
+Depends: python3, python3-argcomplete
+Maintainer: Bo Cimino <ciminobo@protonmail.com>
+Changed-By: Bo Cimino <ciminobo@protonmail.com>
+Description: A command-line focused and light-weight project manager.

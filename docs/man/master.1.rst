@@ -1,20 +1,20 @@
-======
- work
-======
+========
+ master
+========
 
-------------------------------
-A command-line project manager
-------------------------------
+---------------------------------------
+A command-line project and time manager
+---------------------------------------
 
 .. include:: _manual-section.rst
 
 SYNOPSIS
 ========
-**work** [global-opts] *command* [options]
+**master** [global-opts] *command* [options]
 
 DESCRIPTION
 ===========
-Work is a program for command-line project management with a ticketing system
+Master is a program for command-line project management with a ticketing system
 that can to scale up for collaborative teams and down for individuals.
 
 OPTIONS
@@ -26,14 +26,14 @@ These global options must be specified before the subcommand.
 
 **--config** *CONFIG*
         Select custom configuration file. This configuration file is in ini
-        format, and the default is at ~/.config/work/work.ini.
+        format, and the default is at ~/.config/master/master.ini.
 
 **--root** *ROOT*
-        Specify a custom root work directory to operate on. This default may
-        be configured in work's config file.
+        Specify a custom root master directory to operate on. This default may
+        be configured in master's config file.
 
 **--version**
-        Display the version of work.
+        Display the version of master.
 
 
 FAQ

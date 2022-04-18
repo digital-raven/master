@@ -27,7 +27,7 @@ MANIFEST
 
 *.deb
 .pybuild/
-work_*/
+master_*/
 debian/
 
 # PyInstaller

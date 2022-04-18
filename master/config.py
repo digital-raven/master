@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 
 
-default_conf = '/etc/work/default.ini'
-user_confdir = '{}/.config/work'.format(Path.home())
-user_conf = '{}/work.ini'.format(user_confdir)
+default_conf = '/etc/master/default.ini'
+user_confdir = '{}/.config/master'.format(Path.home())
+user_conf = '{}/master.ini'.format(user_confdir)
 
 
 def get_defaults():

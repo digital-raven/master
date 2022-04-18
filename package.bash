@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 ################################################################################
-# help create distribution for work.
+# help create distribution for master.
 ################################################################################
 
 version="$(git describe --tags)"
-pkgname="work_$version"
+pkgname="master_$version"
 
 # Make man pages
 cd docs/man
@@ -39,7 +39,7 @@ then
     python3 setup.py bdist --format=gztar
 elif [ "$1" == "clean" ]
 then
-    rm -rf .pybuild *.deb work_*/ dist/ *.egg-info build/ debian/ *.rpm
+    rm -rf .pybuild *.deb master_*/ dist/ *.egg-info build/ debian/ *.rpm
     cd docs/man
     make clean
     exit 0

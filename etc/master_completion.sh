@@ -19,4 +19,4 @@ _python_argcomplete() {
         compopt -o nospace
     fi
 }
-complete -o nospace -o default -F _python_argcomplete "work"
+complete -o nospace -o default -F _python_argcomplete "master"

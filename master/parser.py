@@ -4,7 +4,7 @@
 import argparse
 import sys
 
-from work import __version__
+from master import __version__
 
 
 def print_version():
@@ -23,9 +23,9 @@ def create_parser():
             parser.parse_args().
     """
     parser = argparse.ArgumentParser(
-        prog='work',
+        prog='master',
         description=(
-            'A command-line project manager. Run "work" with no '
+            'A command-line project manager. Run "master" with no '
             'arguments to perform first-time setup.'))
 
     parser.add_argument(
@@ -36,7 +36,7 @@ def create_parser():
         '--root', help='Specify a custom root dir to operate on.')
 
     parser.add_argument(
-        '--version', nargs=0, help='Print the version of work and exit.',
+        '--version', nargs=0, help='Print the version of master and exit.',
         action=print_version())
 
     # begin subparsers

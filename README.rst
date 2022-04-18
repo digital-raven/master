@@ -1,8 +1,8 @@
-======
- work
-======
+========
+ master
+========
 
-Welcome to work, a command-line focused tool for project management.
+Welcome to master, a program for for mastering projects and one's time.
 
 Usage
 =====
@@ -42,7 +42,7 @@ commands.
 
 Testing and developer usage
 ===========================
-Run these commands to install daily to a virtual environment.
+Run these commands to install master to a virtual environment.
 
 ::
 
@@ -50,7 +50,7 @@ Run these commands to install daily to a virtual environment.
     . ./venv/bin/activate
     python3 ./setup.py
     pip3 install -e .
-    daily
+    master
 
 Use the following command to run unit tests.
 

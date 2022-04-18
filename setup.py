@@ -24,7 +24,7 @@ if 'DEBBUILD' not in os.environ:
 version=sp.check_output(['git','describe','--tags'], text=True).strip()
 
 setup(
-    name='work',
+    name='master',
     version=version,
     description='The command-line project manager.',
     long_description=long_description,
@@ -37,13 +37,13 @@ setup(
     python_requires='>3, <4',
     install_requires=install_requires,
     data_files=[
-        ('/etc/work', ['etc/default.ini']),
-        ('/etc/bash_completion.d', ['etc/work_completion.sh']),
+        ('/etc/master', ['etc/default.ini']),
+        ('/etc/bash_completion.d', ['etc/master_completion.sh']),
         ('/usr/share/man/man1', manfiles),
     ],
     entry_points={
         'console_scripts': [
-            'work=work.main:main',
+            'master=master.main:main',
         ]
     },
 )

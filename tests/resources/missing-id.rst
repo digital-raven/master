@@ -1,5 +1,5 @@
 =========================================
- PROJ-24: Find something funnier than 24
+ PROJ_24: Find something funnier than 24
 =========================================
 Probably 25
 Hehe

@@ -32,104 +32,110 @@ class Task:
     Every task, at a minimum, has a title, creator, ID, stage, assignee,
     project name, and tags.
     """
-    def __init__(self, title, description, values=None, **kwargs):
+    def __init__(self, title, description, attributes=None, **kwargs):
         """ Init a new Task.
 
         Args:
             title: Title of the task.
             description: A longer description about the task.
-            values: Metadata about the task. Each task is required to have
-                the following values at a minimum.
+            attributes: Metadata about the task. Each task is required to have
+                the following attributes at a minimum.
 
-                assignee: Userid of the person who is assigned the task.
-                project: Name of the project which owns the task
+                creator: The userid of the person who created the task.
                 date: String representing the task's creation date. Can be
                     human-readable; like 'today', or 'last wednesday'.
-                creator: The userid of the person who created the task.
-                stage: What stage the task is in. Defaults to "todo".
                 id: The task's ID. It is on the creator to ensure it is unique.
-                tags: List of tags for the task.:
+                project: Name of the project which owns the task
+                stage: What stage the task is in. Defaults to "todo".
+                tags: List of tags for the task.
 
-                These values may also be provided to the constructor via
-                keyword arguments. Tasks may have additional values.
+                These attributes may also be provided to the constructor via
+                keyword arguments. Tasks may have additional attributes.
 
         Raises:
-            ValueError if not all required values were provided.
+            ValueError if not all required attributes were provided or if
+                some were invalid (like non-dates in a date field).
         """
-        values = values or dict()
+        attributes = attributes or dict()
 
-        if 'id' not in values and 'id' not in kwargs:
+        if 'id' not in attributes and 'id' not in kwargs:
             raise ValueError('No ID provided.')
 
         self.title = title
         self.description = description
 
-        # Process values
-        self.values = {}
-        self.values.update(values)
-        self.values.update(kwargs)
+        # Process attributes
+        self.attributes = {}
+        self.attributes.update(attributes)
+        self.attributes.update(kwargs)
 
         # Set certain defaults
-        if 'assignee' not in self.values:
-            self.values['assignee'] = ''
-        if 'date' not in self.values:
-            self.values['date'] = parse_date('today')
-        if 'stage' not in self.values:
-            self.values['stage'] = 'todo'
-        if 'tags' not in self.values:
-            self.values['tags'] = []
+        if 'date' not in self.attributes:
+            date = 'today'
+        if 'stage' not in self.attributes:
+            self.attributes['stage'] = 'todo'
+        if 'tags' not in self.attributes:
+            self.attributes['tags'] = []
+
+        date = self.attributes['date']
+        self.attributes['date'] = parse_date(date)
 
         self.check()
         self.refresh()
 
     def refresh(self):
-        """ Make minor corrections to values.
+        """ Make minor corrections to attributes.
 
-        Sort and downcase the tags, alphabetize the keys in values,
+        Sort and downcase the tags, alphabetize the keys in attributes,
         and ensure the title starts with the ID.
         """
         try:
-            self.tags = sorted(list(set([x.lower() for x in self.tags])))
+            tags = sorted(list(set([x.lower() for x in self.attributes['tags']])))
+            self.attributes['tags'] = tags
         except AttributeError:
-            self.values['tags'] = {}
+            self.attributes['tags'] = []
 
-        nv = {k:self.values[k] for k in sorted(self.values)}
-        self.values = nv
+        nv = {k: self.attributes[k] for k in sorted(self.attributes)}
+        self.attributes = nv
 
         # The title should have the ID as a prefix.
         if not self.title.startswith(self.id):
             self.title = f'{self.id}: {self.title}'
 
+        # Try to parse dates
+        for k, v in self.attributes.items():
+            if 'date' in k and v:
+                self.attributes[k] = parse_date(v)
+
     def check(self):
-        """ Check the validity of this task's values.
+        """ Check the validity of this task's attributes.
 
         Will raise an exception if expected keys are missing from the
-        metadata, or if the keys aren't valid python3 var names.
+        metadata, or if the keys aren't valid python3 identifiers.
 
         Raises:
             ValueError: The error message will indicate the problem with
                 any keys.
         """
-        exp = {'assignee', 'creator', 'date', 'id', 'project', 'stage', 'tags'}
+        exp = {'creator', 'date', 'id', 'project', 'stage', 'tags'}
         missing = []
         for e in exp:
-            if e not in self.values:
+            if e not in self.attributes:
                 missing.append(e)
 
         if missing:
             t = self.title
             missing = ', '.join(missing)
-            raise ValueError(f'Task "{t}" is missing the {missing} values.')
+            raise ValueError(f'Task "{t}" is missing the {missing} attributes.')
 
-        # TODO: Python3 supports unicode in var names. Add that here.
         invalid = []
-        for k in self.values:
-            if not re.search('[a-zA-Z_][a-zA-Z0-9_]*', k):
-                invalid.append(k)
+        for k in self.attributes:
+            if not k.isidentifier():
+                invalid.append(f'"{k}"')
 
         if invalid:
             invalid = ', '.join(invalid)
-            raise ValueError('The following keys are invalid: {invalid}')
+            raise ValueError(f'The following keys are invalid: {invalid}')
 
     @classmethod
     def createFromRst(cls, rst):
@@ -138,10 +144,10 @@ class Task:
         The title is expected to be an RST level-1 heading (=====). This
         is followed by the task's description.
 
-        At the end of the description are the values. These are single
-        line values which contain metadata about the task.
+        At the end of the description are the attributes. These are single
+        line attributes which contain metadata about the task.
 
-        The minimum required set for these values are the task's ID,
+        The minimum required set for these attributes are the task's ID,
         date of creation, username of the creator, tags, and assignee.
 
             ==========================
@@ -180,9 +186,9 @@ class Task:
 
         ptr = 0
 
-        values = {}
+        attributes = {}
 
-        # Extract the values first. Some may be modified in special ways.
+        # Extract the attributes first. Some may be modified in special ways.
         curline = rst[-1].strip()
         while curline != '':
             curline = curline.split(':')
@@ -192,10 +198,10 @@ class Task:
             if key == 'tags':
                 value = value.replace(',', ' ').replace(':', ' ').split()
                 value = sorted(list(set(value)))
-            elif 'date' in key or 'time' in key:  # Try to parse dates
+            elif 'date' in key:  # Try to parse dates
                 value = parse_date(value)
 
-            values[key] = value
+            attributes[key] = value
             rst = rst[:-1]
             curline = rst[-1].strip()
 
@@ -210,26 +216,26 @@ class Task:
             rst = rst[2:]
         description = '\n'.join(rst).strip()
 
-        return Task(title, description, values)
+        return Task(title, description, attributes)
 
     def update(self, new_task):
         """ Update a task.
 
         The title and description of this task will be replaced, and the
-        values will be replaced with the values in the new task.
+        attributes will be replaced with the attributes in the new task.
 
         Designed to replace an existing task with the one modified in
         a text editor.
 
         Args:
-            new_task: Other task instance whose values will be used.
+            new_task: Other task instance whose attributes will be used.
 
         Raises:
             See createFromRst.
         """
         self.title = new_task.title
         self.description = new_task.description
-        self.values = new_task.values
+        self.attributes = new_task.attributes
 
         self.check()
         self.refresh()
@@ -248,9 +254,9 @@ class Task:
         s.append(self.description)
         s.append('')
 
-        # Add the values alphabetically
-        for k in sorted(self.values.keys()):
-            v = self.values[k]
+        # Add the attributes alphabetically
+        for k in sorted(self.attributes.keys()):
+            v = self.attributes[k]
             if k == 'tags':
                 v = ', '.join(v)
 
@@ -262,12 +268,12 @@ class Task:
         return '\n'.join(s)
 
     def __getattr__(self, key):
-        """ Expose keys in values as attributes.
+        """ Expose keys in self.attributes as attributes.
         """
         if key in self.__dict__:
             return self.__dict__[key]
         else:
             try:
-                return self.values[key]
+                return self.attributes[key]
             except KeyError as e:
                 raise AttributeError(f"'Task' object has no attribute {key}")

@@ -1,5 +1,5 @@
 =========================================
- PROJ-24: Find something funnier than 24
+ PROJ_24: Find something funnier than 24
 =========================================
 Probably 25
 Hehe
@@ -11,9 +11,8 @@ Funniness
 assignee: 
 creator: shillenburg
 date: today
-mytime: today
 due_date: next wednesday
-id: PROJ-24
+id: PROJ_24
 project: project
 stage: todo
 tags: patrick, spongebob

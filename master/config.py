@@ -22,7 +22,8 @@ def get_defaults():
         configuration file.
     """
     return {
-        'journal': './journal.json',
+        'username': '',
+        'email': '',
     }
 
 
@@ -32,7 +33,6 @@ def do_first_time_setup():
 
     # use these vals to create user config if not present in system defaults.
     default_vals = get_defaults()
-    default_vals['root'] = ''
 
     cp = configparser.ConfigParser()
 
@@ -54,12 +54,6 @@ def do_first_time_setup():
 
     with open(user_conf, 'w') as f:
         cp.write(f)
-
-    try:
-        dir_ = os.path.dirname(cp['default']['root'])
-        os.makedirs(dir_)
-    except FileExistsError:
-        pass
 
 
 def add_config_args(args, config=None):

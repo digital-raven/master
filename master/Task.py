@@ -58,9 +58,6 @@ class Task:
         """
         attributes = attributes or dict()
 
-        if 'id' not in attributes and 'id' not in kwargs:
-            raise ValueError('No ID provided.')
-
         self.title = title
         self.description = description
 
@@ -117,16 +114,25 @@ class Task:
             ValueError: The error message will indicate the problem with
                 any keys.
         """
-        exp = {'creation_date', 'creator', 'id', 'project', 'stage', 'tags'}
+        exp = {'creation_date', 'creator', 'id', 'project', 'stage'}
         missing = []
         for e in exp:
-            if e not in self.attributes:
+            if e not in self.attributes or not self.attributes[e].strip():
                 missing.append(e)
+
+        # tags is special because it's allowed to be empty.
+        if 'tags' not in self.attributes:
+            missing.append('tags')
 
         if missing:
             t = self.title
             missing = ', '.join(missing)
-            raise ValueError(f'Task "{t}" is missing the {missing} attributes.')
+            raise ValueError(f'The {missing} attributes are missing.')
+
+        try:
+            int(''.join(self.id.split('_')[1:]))
+        except ValueError:
+            raise ValueError(f'The ID {self.id} is invalid.')
 
         invalid = []
         for k in self.attributes:
@@ -135,7 +141,7 @@ class Task:
 
         if invalid:
             invalid = ', '.join(invalid)
-            raise ValueError(f'The following keys are invalid: {invalid}')
+            raise ValueError(f'The following key names are invalid: {invalid}')
 
     @classmethod
     def createFromRst(cls, rst):

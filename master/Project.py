@@ -2,6 +2,8 @@
 """
 import os
 import sys
+import tempfile
+from subprocess import call
 
 from master import colonconf
 from master.Task import Task
@@ -21,6 +23,28 @@ def readdir_(d):
 
     for root, dirs, files in os.walk(d):
         return root, dirs, files
+
+
+def editTask(task, editor):
+    """ Open task in editor with a tmp file.
+
+    Returns: The text from the tmp file.
+    """
+    _, path = tempfile.mkstemp(suffix='.rst')
+
+    try:
+        with open(path, 'w') as f:
+            f.write(task.getRst())
+
+        call([editor, path])
+
+        with open(path, 'r') as f:
+            text = f.read()
+
+    finally:
+        os.remove(path)
+
+    return text
 
 
 class Project:
@@ -52,9 +76,9 @@ class Project:
 
         # List of modified tasks.
         self.modified = {}
-        self.max_id = 1
+        self.max_id = 0
         for task in tasks.values():
-            self.addTask(task)
+            self.updateTask(task)
 
         # Reset self.modified since the project hasn't changed anything on disk.
         self.modified = {}
@@ -142,6 +166,9 @@ class Project:
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
+
+        Raises:
+            ValueError if any of the rst files produced invalid tasks.
         """
         r, d, f = readdir_(path)
 
@@ -150,9 +177,32 @@ class Project:
         except (FileNotFoundError, PermissionError):
             return None
 
-        projects = {f'{x}': Project.loadFromDisk(f'{r}/{x}') for x in d}
-        projects = {k: v for k, v in projects.items() if v}
-        tasks = {x: Task.createFromRst(x) for x in f if x.endswith('.rst')}
+        # Load tasks and keep track of invalid entries.
+        tasks = {}
+        invalid_tasks = []
+        for rst in [f'{r}/{x}' for x in f if x.endswith('.rst')]:
+            try:
+                t = Task.createFromRst(rst)
+                tasks[t.id] = t
+            except ValueError as ve:
+                invalid_tasks.append(f'{rst}: {ve}')
+        if invalid_tasks:
+            invalid_tasks.insert(0, f'The project {r} has invalid tasks.')
+            invalid_tasks.append('')  # Will become an extra newline
+
+        # Do the same for projects.
+        projects = {}
+        invalid_projects = []
+        for proj in [f'{r}/{x}' for x in d]:
+            try:
+                p = Project.loadFromDisk(proj)
+                if p:
+                    projects[p.name] = p
+            except ValueError as ve:
+                invalid_projects.append(str(ve))
+
+        if invalid_tasks or invalid_projects:
+            raise ValueError('\n'.join(invalid_tasks + invalid_projects))
 
         return Project(settings['project_name'], r, projects, tasks, settings)
 
@@ -171,6 +221,9 @@ class Project:
 
         Returns:
             A reference to the newly created task.
+
+        Raises:
+            ValueError if the task was invalid.
         """
         attrs = attrs or {}
         if 'default_attributes' in self.settings:
@@ -186,23 +239,16 @@ class Project:
 
         attrs['creator'] = creator
         attrs['creation_date'] = 'today'
-        attrs['id'] = self.settings['task_prefix'] + str(self.max_id)
+        attrs['id'] = self.settings['task_prefix'] + str(self.max_id + 1)
         attrs['project'] = self.name
 
         task = Task(title, description, attrs)
 
-        # TODO: Open task in editor
-        #
-
-        self.addTask(task)
-        self.dump()
+        self.updateTask(task, editor)
         return task
 
-    def addTask(self, task):
+    def updateTask(self, task, editor=''):
         """ Add a task to this project or modify an existing one.
-
-        The new task will be queued for dumping. If this isn't desired
-        then set self.modified to {} after calling.
 
         If the new task has a conflicting ID with an existing task, then the
         existing task will be overwritten.
@@ -210,12 +256,28 @@ class Project:
         Args:
             task: New task to add.
         """
+        origid = task.id
+        if editor:
+            text = editTask(task, editor)
+            try:
+                task = Task.createFromRst(text)
+            except ValueError as ve:
+                with open(f'task.bkp.rst', 'w') as f:
+                    f.write(text.strip() + '\n')
+                raise ValueError(
+                    f'The created task was invalid. Your text has been '
+                    f'saved to task.bkp.rst.\n'
+                    f'Reason: {ve}')
+
+        if origid in self.tasks:
+            del self.tasks[origid]
+
         self.tasks[task.id] = task
         self.modified[task.id] = task
 
         cur_id = int(task.id.split('_')[-1])
         self.max_id = max(self.max_id, cur_id)
-        self.max_id += 1
+        self.dump()
 
     def addProject(self, name, creator, conf=''):
         """ Add a new project under this project.

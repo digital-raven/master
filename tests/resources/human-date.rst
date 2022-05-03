@@ -9,8 +9,8 @@ Funniness
 10/10
 
 assignee: 
+creation_date: today
 creator: shillenburg
-date: today
 due_date: next wednesday
 id: PROJ_24
 project: project

@@ -8,8 +8,8 @@ Funniness
 ---------
 10/10
 
+creation_date: today
 creator: shillenburg
-date: today
 id: PROJ_24
 project: project
 stage: todo

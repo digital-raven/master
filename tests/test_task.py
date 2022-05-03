@@ -40,7 +40,7 @@ class TestTask(unittest.TestCase):
         exp_date = parse_date('today')
         exp_duedate = parse_date('next wednesday')
 
-        self.assertEqual(exp_date, t.date)
+        self.assertEqual(exp_date, t.creation_date)
         self.assertEqual(exp_duedate, t.due_date)
 
     def test_trailing_space(self):

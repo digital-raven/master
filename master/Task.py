@@ -41,9 +41,9 @@ class Task:
             attributes: Metadata about the task. Each task is required to have
                 the following attributes at a minimum.
 
+                creation_date: String representing the task's creation date.
+                    Can be human-readable; like 'today', or 'last wednesday'.
                 creator: The userid of the person who created the task.
-                date: String representing the task's creation date. Can be
-                    human-readable; like 'today', or 'last wednesday'.
                 id: The task's ID. It is on the creator to ensure it is unique.
                 project: Name of the project which owns the task
                 stage: What stage the task is in. Defaults to "todo".
@@ -70,15 +70,15 @@ class Task:
         self.attributes.update(kwargs)
 
         # Set certain defaults
-        if 'date' not in self.attributes:
-            date = 'today'
+        if 'creation_date' not in self.attributes:
+            creation_date = 'today'
         if 'stage' not in self.attributes:
             self.attributes['stage'] = 'todo'
         if 'tags' not in self.attributes:
             self.attributes['tags'] = []
 
-        date = self.attributes['date']
-        self.attributes['date'] = parse_date(date)
+        creation_date = self.attributes['creation_date']
+        self.attributes['creation_date'] = parse_date(creation_date)
 
         self.check()
         self.refresh()
@@ -104,7 +104,7 @@ class Task:
 
         # Try to parse dates
         for k, v in self.attributes.items():
-            if 'date' in k and v:
+            if 'creation_date' in k and v:
                 self.attributes[k] = parse_date(v)
 
     def check(self):
@@ -117,7 +117,7 @@ class Task:
             ValueError: The error message will indicate the problem with
                 any keys.
         """
-        exp = {'creator', 'date', 'id', 'project', 'stage', 'tags'}
+        exp = {'creation_date', 'creator', 'id', 'project', 'stage', 'tags'}
         missing = []
         for e in exp:
             if e not in self.attributes:
@@ -161,7 +161,7 @@ class Task:
 
             creator: ciminobo
             assignee: ciminobo
-            date: 05/07/1993
+            creation_date: 05/07/1993
             ...
 
         Args:

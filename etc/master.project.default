@@ -1,6 +1,7 @@
 ################################################################################
 # This is the default configuration for new projects. The settings
 # in this file will be copied to new projects as .master.project
+#
 
 ################################################################################
 # List of users who have ultimate access to this project and every
@@ -18,12 +19,12 @@ project_name =
 # Attributes that each new task under this project will have by default. Place
 # each attribute on its own line.
 #
-# Each task will always have a creator, date, id, project, stage, and tags
-# regardless of the defaults listed here.
+# Each task will always have a creation_date, creator, id, project, stage,
+# and tags regardless of the defaults listed here.
 #
 default_attributes =
+    creation_date
     creator
-    date
     id
     project
     stage
@@ -37,8 +38,8 @@ default_attributes =
 #       stage: todo
 #       due_date: next wednesday
 #
-# This setting cannot override the creator, date, id, or project attributes,
-# as those are generated automatically for each task.
+# This setting cannot override the creation_date, creator, id, or project
+# attributes, as those are generated automatically for each task.
 #
 default_attribute_values =
     stage: todo

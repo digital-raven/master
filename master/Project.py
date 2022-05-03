@@ -166,8 +166,8 @@ class Project:
             editor: Open the task for editing in the specified editor.
             title: Optional title of the new task.
             description: Optional description of the new task.
-            attrs: Additional desired attrs of the task. creator, date, id,
-                and the project name cannot be overridden.
+            attrs: Additional desired attrs of the task. creator,
+                creation_date, id, and the project name cannot be overridden.
 
         Returns:
             A reference to the newly created task.
@@ -185,7 +185,7 @@ class Project:
                 attrs[k] = v
 
         attrs['creator'] = creator
-        attrs['date'] = 'today'
+        attrs['creation_date'] = 'today'
         attrs['id'] = self.settings['task_prefix'] + str(self.max_id)
         attrs['project'] = self.name
 

@@ -9,7 +9,7 @@ Funniness
 10/10
 
 project: project
-date: today
+creation_date: today
 creator:shillenburg
 assignee: 
 stage: todo

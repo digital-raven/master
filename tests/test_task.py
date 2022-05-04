@@ -20,21 +20,16 @@ class TestTask(unittest.TestCase):
 
         self.assertEqual(exp, t.getRst())
 
-    def test_missing_id(self):
-        """ Task creation should raise ValueError if missing ID.
-        """
-        with self.assertRaises(ValueError):
-            t = Task.createFromRst(f'{resources}/missing-id.rst')
-
     def test_alphabetized_attributes(self):
-        """ The metadata should appear in alphabetical order.
+        """ Tasks should alphabetize attributes when printing.
         """
         t = Task.createFromRst(f'{resources}/out-of-order.rst')
-        exp = sorted(t.attributes)
-        self.assertEqual(exp, list(t.attributes))
+        with open(f'{resources}/in-order.rst') as f:
+            exp = f.read()
+        self.assertEqual(exp, t.getRst())
 
     def test_humanized_date(self):
-        """ Values that contain "date" or "time" should be parsed.
+        """ Values that contain "date" should be parsed.
         """
         t = Task.createFromRst(f'{resources}/human-date.rst')
         exp_date = parse_date('today')

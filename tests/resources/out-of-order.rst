@@ -8,7 +8,7 @@ Funniness
 ---------
 10/10
 
-creation_date: today
+creation_date: 2022-05-04, Wed
 creator: shillenburg
 id: PROJ_24
 project: project

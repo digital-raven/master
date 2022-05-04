@@ -53,8 +53,7 @@ class Task:
                 keyword arguments. Tasks may have additional attributes.
 
         Raises:
-            ValueError if not all required attributes were provided or if
-                some were invalid (like non-dates in a date field).
+            ValueError if some attributes were invalid (see Task.check method).
         """
         attributes = attributes or dict()
 
@@ -66,74 +65,35 @@ class Task:
         self.attributes.update(attributes)
         self.attributes.update(kwargs)
 
-        # Set certain defaults
-        if 'creation_date' not in self.attributes:
-            creation_date = 'today'
-        if 'stage' not in self.attributes:
-            self.attributes['stage'] = 'todo'
-        if 'tags' not in self.attributes:
-            self.attributes['tags'] = []
-
-        creation_date = self.attributes['creation_date']
-        self.attributes['creation_date'] = parse_date(creation_date)
-
         self.check()
         self.refresh()
 
     def refresh(self):
-        """ Make minor corrections to attributes.
+        """ Make minor corrections to attribute values.
 
-        Sort and downcase the tags, alphabetize the keys in attributes,
-        and ensure the title starts with the ID.
+        Sort and downcase the tags and try to parse dates.
+
+        Raises:
+            ValueError if a date could not be parsed. This will happen if
+                the value is a non-empty string that was not a parsable date.
         """
-        try:
+        if 'tags' in self.attributes:
             tags = sorted(list(set([x.lower() for x in self.attributes['tags']])))
             self.attributes['tags'] = tags
-        except AttributeError:
-            self.attributes['tags'] = []
-
-        nv = {k: self.attributes[k] for k in sorted(self.attributes)}
-        self.attributes = nv
-
-        # The title should have the ID as a prefix.
-        if not self.title.startswith(self.id):
-            self.title = f'{self.id}: {self.title}'
 
         # Try to parse dates
         for k, v in self.attributes.items():
-            if 'creation_date' in k and v:
+            if 'date' in k and v:
                 self.attributes[k] = parse_date(v)
 
     def check(self):
         """ Check the validity of this task's attributes.
 
-        Will raise an exception if expected keys are missing from the
-        metadata, or if the keys aren't valid python3 identifiers.
+        Will raise an exception if any keys aren't valid python3 identifiers.
 
         Raises:
-            ValueError: The error message will indicate the problem with
-                any keys.
+            ValueError: If any keys weren't valid python3 identifiers.
         """
-        exp = {'creation_date', 'creator', 'id', 'project', 'stage'}
-        missing = []
-        for e in exp:
-            if e not in self.attributes or not self.attributes[e].strip():
-                missing.append(e)
-
-        # tags is special because it's allowed to be empty.
-        if 'tags' not in self.attributes:
-            missing.append('tags')
-
-        if missing:
-            t = self.title
-            missing = ', '.join(missing)
-            raise ValueError(f'The {missing} attributes are missing.')
-
-        try:
-            int(''.join(self.id.split('_')[1:]))
-        except ValueError:
-            raise ValueError(f'The ID {self.id} is invalid.')
-
         invalid = []
         for k in self.attributes:
             if not k.isidentifier():
@@ -190,8 +150,6 @@ class Task:
         if not rst:
             raise ValueError('The task was empty.')
 
-        ptr = 0
-
         attributes = {}
 
         # Extract the attributes first. Some may be modified in special ways.
@@ -241,10 +199,7 @@ class Task:
         """
         self.title = new_task.title
         self.description = new_task.description
-        self.attributes = new_task.attributes
-
-        self.check()
-        self.refresh()
+        self.attributes.update(new_task.attributes)
 
     def getRst(self):
         """ Display this task in RST format.

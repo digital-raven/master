@@ -1,6 +1,7 @@
 """ Manage projects and tasks.
 """
 import os
+import re
 import sys
 import tempfile
 from subprocess import call
@@ -28,7 +29,19 @@ def readdir_(d):
 def editTask(task, editor):
     """ Open task in editor with a tmp file.
 
-    Returns: The text from the tmp file.
+    This function does not return a task; it returns the task's RST. Check
+    the validity of this output like this...
+
+        # ... init some Task t
+        # ...
+        try:
+            rst = editTask(t, 'vim')
+            t = Task.createFromRst(rst)
+        except ValueError:
+            # handle the exception.
+
+    Returns:
+        The text from the tmp file.
     """
     _, path = tempfile.mkstemp(suffix='.rst')
 
@@ -65,8 +78,11 @@ class Project:
             name: Name of the project.
             path: Path of the project on disk.
             projects: Dictionary of other projects under this one.
-            tasks: Dictionary of Tasks. Key should be the ID of the task.
+            tasks: List of tasks to add.
             settings: Dict of config settings loaded from project's conf.
+
+        Raises:
+            ValueError if any of the tasks were invalid.
         """
         self.name = name
         self.path = os.path.abspath(path)
@@ -77,11 +93,54 @@ class Project:
         # List of modified tasks.
         self.modified = {}
         self.max_id = 0
-        for task in tasks.values():
-            self.updateTask(task)
 
-        # Reset self.modified since the project hasn't changed anything on disk.
-        self.modified = {}
+        # Load the default attributes
+        if 'default_attributes' in self.settings:
+            tmp = {x.strip() for x in self.settings['default_attributes'].splitlines() if x.strip()}
+            self.settings['default_attributes'] = tmp
+        else:
+            self.settings['default_attributes'] = set()
+
+        # Load the default_attribute_values
+        if 'default_attribute_values' in self.settings:
+            tmp = {}
+            lines = self.settings['default_attribute_values'].splitlines()
+            for df in lines:
+                df = df.split(':')
+                tmp[df[0].strip()] = ':'.join(df[1:]).strip()
+            self.settings['default_attribute_values'] = tmp
+        else:
+            self.settings['default_attribute_values'] = dict()
+
+        self.check()
+
+        # Add the tasks to this project
+        for task in tasks:
+            self.addTask(task, task.id)
+
+    def check(self):
+        """ Ensure all settings are valid python3 identifiers.
+
+        Raises:
+            ValueError if a project setting was invalid.
+        """
+        invalids = []
+        for k in self.settings:
+            if not k.isidentifier():
+                invalids.append(k)
+
+        for k in self.settings['default_attributes']:
+            if not k.isidentifier():
+                invalids.append(k)
+
+        for k in self.settings['default_attribute_values']:
+            if not k.isidentifier():
+                invalids.append(k)
+
+        if invalids:
+            invalids = ', '.join(invalids)
+            s = 'The following project settings are invalid identifiers'
+            raise ValueError(f'{s}: {invalids}')
 
     @classmethod
     def initOnDisk(cls, path, creator, conf=''):
@@ -154,7 +213,7 @@ class Project:
         return Project.loadFromDisk(path)
 
     @classmethod
-    def loadFromDisk(cls, path):
+    def loadFromDisk(cls, path, pattern=''):
         """ Load a project from disk.
 
         Projects will be recursively loaded from a path on the
@@ -163,12 +222,11 @@ class Project:
 
         Args:
             path: Dir where projects are located.
+            pattern: Load files that match the pattern. Will default
+                to '^{task_prefix}.+\.rst$' if not provided.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
-
-        Raises:
-            ValueError if any of the rst files produced invalid tasks.
         """
         r, d, f = readdir_(path)
 
@@ -177,20 +235,22 @@ class Project:
         except (FileNotFoundError, PermissionError):
             return None
 
-        # Load tasks and keep track of invalid entries.
-        tasks = {}
-        invalid_tasks = []
-        for rst in [f'{r}/{x}' for x in f if x.endswith('.rst')]:
-            try:
-                t = Task.createFromRst(rst)
-                tasks[t.id] = t
-            except ValueError as ve:
-                invalid_tasks.append(f'{rst}: {ve}')
-        if invalid_tasks:
-            invalid_tasks.insert(0, f'The project {r} has invalid tasks.')
-            invalid_tasks.append('')  # Will become an extra newline
+        # Init the project with current settings.
+        project = Project(settings['project_name'], r, {}, {}, settings)
 
-        # Do the same for projects.
+        if not pattern:
+            prefix = project.settings['task_prefix']
+            pattern = f'^{prefix}[0-9]+\.rst$'
+
+        # Load tasks.
+        invalid_tasks = ''
+        taskfiles = [f'{r}/{x}' for x in f if re.search(pattern, x)]
+        try:
+            project.loadTasks(taskfiles)
+        except ValueError as ve:
+            invalid_tasks = f'The project {r} has invalid tasks.\n' + str(ve) + '\n'
+
+        # Load projects.
         projects = {}
         invalid_projects = []
         for proj in [f'{r}/{x}' for x in d]:
@@ -204,7 +264,150 @@ class Project:
         if invalid_tasks or invalid_projects:
             raise ValueError('\n'.join(invalid_tasks + invalid_projects))
 
-        return Project(settings['project_name'], r, projects, tasks, settings)
+        project.projects = projects
+
+        return project
+
+    def loadTasks(self, tasks):
+        """ Load tasks into this project from disk.
+
+        Args:
+            tasks: A list of files to load from.
+
+        Raises:
+            ValueError if any of the tasks were invalid. Valid
+            tasks will still be loaded.
+        """
+        errors = []
+        new_tasks = []
+        for task in tasks:
+            try:
+                self.loadTask(task)
+            except ValueError as ve:
+                errors.append(f'{t}: {ve}')
+
+        if errors:
+            raise ValueError('\n'.join(errors))
+
+    def loadTask(self, task):
+        """ Load a task from a file.
+
+        The task will be corrected as it's read in.
+
+        Args:
+            task: Filepath to load task from.
+
+        Raises:
+            ValueError if the task was invalid.
+        """
+        exp_id = os.path.basename(task).split('.')[0]
+        try:
+            t = Task.createFromRst(task)
+            self.addTask(t, exp_id)
+        except ValueError as ve:
+            raise ValueError(f'{rst}: {ve}')
+
+    def addTask(self, task, exp_id=''):
+        """ Add a new task to this project.
+
+        The task will be corrected.
+
+        Args:
+            task: Task reference to add.
+            exp_id: Expected ID for the task to have.
+
+        Raises:
+            ValueError if the task was invalid and could not
+            be corrected.
+        """
+        corrected = self._correctTask(task, exp_id)
+        if corrected:
+            self.modified[task.id] = task
+
+        self._addTask(task)
+
+    def _addTask(self, task):
+        """ Blindly adds a task without correction
+
+        Only send corrected tasks to this method.
+        """
+        self.tasks[task.id] = task
+
+        # Update max_id
+        cur_id = int(task.id.split('_')[-1])
+        self.max_id = max(self.max_id, cur_id)
+
+    def _correctTask(self, t, exp_id, creation_date='', creator=''):
+        """ Correct a task's metadata.
+
+        Args:
+            t: Task to be corrected.
+            exp_id: Expected ID of the task.
+            creation_date: Expected original creation date.
+            creator: Expected creator of the task.
+
+        Returns:
+            True if the task required a correction. False otherwise.
+
+        Raise:
+            ValueError if the task was invalid and therefore uncorrectable.
+        """
+        corrected = False
+
+        # Default the creation_date to 'today'
+        if 'creation_date' not in t.attributes:
+            t.attributes['creation_date'] = 'today'
+            corrected = True
+
+        # Ensure the creation_date isn't modified.
+        if creation_date and t.creation_date != creation_date:
+            t.creation_date = creation_date
+            corrected = True
+
+        # Ensure each task has a creator field.
+        if 'creator' not in t.attributes or (creator and creator != t.creator):
+            t.attributes['creator'] = creator
+            corrected = True
+
+        # Correct the ID.
+        if 'id' not in t.attributes or (exp_id and t.id != exp_id):
+            t.attributes['id'] = exp_id
+            corrected = True
+
+        # Check the ID
+        if not re.search('_[0-9]+$', t.id):
+            raise ValueError(f'Invalid ID {t.id}')
+
+        # The task always belongs to this project.
+        if 'project' not in t.attributes or t.project != self.name:
+            t.attributes['project'] = self.name
+            corrected = True
+
+        # All tasks require a stage
+        if 'stage' not in t.attributes:
+            t.attributes['stage'] = 'todo'
+            corrected = True
+
+        # All tasks must have tags as a list.
+        if 'tags' not in t.attributes or type(t.tags) is not list:
+            t.attributes['tags'] = []
+            corrected = True
+
+        # The ID should prefix the title
+        if not t.title.startswith(t.id):
+            t.title = f'{t.id}: {t.title}'
+            corrected = True
+
+        # Ensure the task has all expected default attributes.
+        for k in self.settings['default_attributes']:
+            if k not in t.attributes:
+                t.attributes[k] = ''
+                corrected = True
+
+        t.check()
+        t.refresh()
+
+        return corrected
 
     def createTask(self, creator, title='', description='', attrs=None, editor=''):
         """ Create a new task for this project.
@@ -226,23 +429,16 @@ class Project:
             ValueError if the task was invalid.
         """
         attrs = attrs or {}
-        if 'default_attributes' in self.settings:
-            attrs = {k: '' for k in self.settings['default_attributes'].splitlines()}
 
-        # Override other default behavior with default_attribute_values
-        if 'default_attribute_values' in self.settings:
-            default_values = self.settings['default_attribute_values'].splitlines()
-            for df in default_values:
-                df = df.split(':')
-                k, v = df[0].strip(), ':'.join(df[1:]).strip()
-                attrs[k] = v
+        # Set default_attribute_values
+        attrs.update(self.settings['default_attribute_values'])
 
         attrs['creator'] = creator
         attrs['creation_date'] = 'today'
         attrs['id'] = self.settings['task_prefix'] + str(self.max_id + 1)
-        attrs['project'] = self.name
 
         task = Task(title, description, attrs)
+        self.addTask(task)
 
         self.updateTask(task, editor)
         return task
@@ -254,9 +450,21 @@ class Project:
         existing task will be overwritten.
 
         Args:
-            task: New task to add.
+            task: Task to update.
+            editor: Path to editor to edit the task.
+
+        Returns:
+            A reference to the updated task.
         """
-        origid = task.id
+
+        # A task's ID and creator should not be modifiable.
+        orig_id = task.id
+        orig_creation_date = task.creation_date
+        orig_creator = task.creator
+
+        # Correct the task before and after editing.
+        self._correctTask(task, orig_id)
+
         if editor:
             text = editTask(task, editor)
             try:
@@ -269,14 +477,14 @@ class Project:
                     f'saved to task.bkp.rst.\n'
                     f'Reason: {ve}')
 
-        if origid in self.tasks:
-            del self.tasks[origid]
+        self._correctTask(task, orig_id, orig_creation_date, orig_creator)
 
         self.tasks[task.id] = task
         self.modified[task.id] = task
 
         cur_id = int(task.id.split('_')[-1])
         self.max_id = max(self.max_id, cur_id)
+
         self.dump()
 
     def addProject(self, name, creator, conf=''):

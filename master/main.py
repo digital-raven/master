@@ -16,25 +16,25 @@ def main():
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
-    if not os.path.exists(user_conf) and not args.config:
-        print('INFO: Running first time setup')
+    if not os.path.exists(user_conf) or args.setup:
+        print(f'INFO: Performing first-use setup.')
         do_first_time_setup()
-        if not args.command:
-            print('Setup complete. User config created in {}'.format(
-                user_conf))
-            print('Run "master -h" to see usage help.')
-            sys.exit(0)
-    elif not args.config:
-        args.config = user_conf
+        print(f'Setup complete. User config initialized at {user_conf}')
+        print('Run "master -h" to see usage help.')
+        sys.exit(0)
 
     if not args.command:
         parser.print_help()
         sys.exit(1)
 
     # fill in args with values from config.
-    args = add_config_args(args, args.config)
+    args = add_config_args(args, user_conf)
 
-    subcommand = importlib.import_module('master.cli.{}'.format(args.command))
+    if not args.username or not args.email:
+        print(f'Username and/or email missing in {user_conf}')
+        sys.exit(1)
+
+    subcommand = importlib.import_module('master.cli.{}.main'.format(args.command))
     subcommand = getattr(subcommand, 'do_{}'.format(args.command))
 
     try:

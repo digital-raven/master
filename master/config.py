@@ -4,6 +4,7 @@
 import configparser
 import os
 from pathlib import Path
+from master.util.edit import edit
 
 
 default_conf = '/etc/master/default.ini'
@@ -11,49 +12,22 @@ user_confdir = '{}/.config/master'.format(Path.home())
 user_conf = '{}/master.ini'.format(user_confdir)
 
 
-def get_defaults():
-    """ Default values for items that should be in a config file.
-
-    These values will be overuled by existing config entries. Useful in
-    the event a config file is missing an entry.
-
-    Returns:
-        A dictionary that contains all expected entries for a
-        configuration file.
-    """
-    return {
-        'username': '',
-        'email': '',
-    }
-
-
 def do_first_time_setup():
-    """ Copy default.ini to user conf path.
+    """ First-time user setup for master.
+
+    This copies the default.ini to the user's conf path. The user will be
+    prompted to edit this configuration after it's copied.
+
+    Raises:
+        FileNotFoundError if the default config could not be read, or
+        any of the exceptions raised by master.util.edit
     """
+    os.makedirs(user_confdir, exist_ok=True)
 
-    # use these vals to create user config if not present in system defaults.
-    default_vals = get_defaults()
+    with open(default_conf) as f:
+        s = f.read()
 
-    cp = configparser.ConfigParser()
-
-    # create empty string as conf if system default does not exist.
-    if os.path.exists(default_conf):
-        cp.read(default_conf)
-    else:
-        cp.read_string('[default]')
-
-    # substitute hardcoded defaults for any absent values.
-    for key in default_vals:
-        if key not in cp['default'] or not cp['default'][key]:
-            cp['default'][key] = str(default_vals[key])
-
-    try:
-        os.makedirs(user_confdir)
-    except FileExistsError:
-        pass
-
-    with open(user_conf, 'w') as f:
-        cp.write(f)
+    edit(s, output_file=user_conf)
 
 
 def add_config_args(args, config=None):
@@ -87,10 +61,9 @@ def add_config_args(args, config=None):
         raise KeyError('Config "{}" is invalid. {}.'.format(config, e))
 
     if 'default' not in cp:
-        raise KeyError('Config {} has no "default" section.'.format(config))
+        raise KeyError('Your config at {config} has no "default" section. Did you touch that line during setup?')
 
-    d = get_defaults()
-    d.update(cp['default'])
+    d = cp['default']
 
     # copy vals into args if not already in args.
     for key, val in d.items():

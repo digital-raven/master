@@ -38,7 +38,7 @@ setup(
     python_requires='>3, <4',
     install_requires=install_requires,
     data_files=[
-        ('/etc/master', ['etc/default.ini']),
+        ('/etc/master', ['etc/default.ini', 'etc/master.project.default']),
         ('/etc/bash_completion.d', ['etc/master_completion.sh']),
         ('/usr/share/man/man1', manfiles),
     ],

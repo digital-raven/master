@@ -5,6 +5,7 @@ import argparse
 import sys
 
 from master import __version__
+from master.cli import build_out_subparsers
 
 
 def print_version():
@@ -29,11 +30,7 @@ def create_parser():
             'arguments to perform first-time setup.'))
 
     parser.add_argument(
-        '--config',
-        help='Select custom configuration file.')
-
-    parser.add_argument(
-        '--root', help='Specify a custom root dir to operate on.')
+        '--setup', help='Redo the first-time setup.', action='store_true')
 
     parser.add_argument(
         '--version', nargs=0, help='Print the version of master and exit.',
@@ -44,5 +41,7 @@ def create_parser():
         metavar='command',
         dest='command',
         description='Each has its own [-h, --help] statement.')
+
+    build_out_subparsers(subparsers)
 
     return parser

@@ -5,7 +5,7 @@ import tempfile
 from subprocess import call
 
 
-def edit(s = '', output_file='', editor=''):
+def edit(s='', output_file='', editor=''):
     """ Open a string in a text editor.
 
     If output_file is supplied, then the string will be copied to that file.

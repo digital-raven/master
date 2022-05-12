@@ -1,5 +1,6 @@
 from master.Project import Project
 
+
 def do_edit(args):
     p = Project.loadFromDisk('./')
 

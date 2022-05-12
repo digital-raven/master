@@ -223,7 +223,7 @@ class Project:
         Args:
             path: Dir where projects are located.
             pattern: Load files that match the pattern. Will default
-                to '^{task_prefix}.+\.rst$' if not provided.
+                to ^{task_prefix}[0-9]+.rst$ if not provided.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
@@ -240,7 +240,7 @@ class Project:
 
         if not pattern:
             prefix = project.settings['task_prefix']
-            pattern = f'^{prefix}[0-9]+\.rst$'
+            pattern = f'^{prefix}[0-9]+.rst$'
 
         # Load tasks.
         invalid_tasks = ''
@@ -532,11 +532,11 @@ class Project:
         """
         filter = filter or 'True'
 
-        l = [f'{root}/{t.id} ... {t.title}' for t in self.tasks.values() if eval(filter)]
+        l_ = [f'{root}/{t.id} ... {t.title}' for t in self.tasks.values() if eval(filter)]
         for p in self.projects.values():
-            l.extend(p.listTasks(filter, f'{root}/{p.name}'))
+            l_.extend(p.listTasks(filter, f'{root}/{p.name}'))
 
-        return l
+        return l_
 
     def __getattr__(self, key):
         """ Expose keys in values as attributes.

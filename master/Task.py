@@ -228,6 +228,16 @@ class Task:
 
         return '\n'.join(s)
 
+    def __eq__(self, o):
+        """ Returns true if o.id matches this one.
+        """
+        return self.id == o.id
+
+    def __lt__(self, o):
+        """ Returns true if o.id is less than this one.
+        """
+        return self.id < o.id
+
     def __getattr__(self, key):
         """ Expose keys in self.attributes as attributes.
         """

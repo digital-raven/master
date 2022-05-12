@@ -213,7 +213,7 @@ class Project:
         return Project.loadFromDisk(path)
 
     @classmethod
-    def loadFromDisk(cls, path, pattern=''):
+    def loadFromDisk(cls, path, pattern='', _root_caller=True):
         """ Load a project from disk.
 
         Projects will be recursively loaded from a path on the
@@ -224,6 +224,7 @@ class Project:
             path: Dir where projects are located.
             pattern: Load files that match the pattern. Will default
                 to ^{task_prefix}[0-9]+.rst$ if not provided.
+            _root_caller: Don't set this. Flag to indicate first call.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
@@ -520,23 +521,34 @@ class Project:
 
         self.modified = {}
 
-    def listTasks(self, filter='', root='.'):
-        """ Return a list of tasks based on some filter.
+    def filteredTasks(self, filter='', root=''):
+        """ Generator for iterating over filtered tasks.
 
-        Designed to help the user click on and then edit an interesting task.
+        Use it like this
 
-        ArgS:
-            filter: String to. t is the task reference for each t in tasks.
-                This filter must follow python3 conditional syntax.
-            root: Don't set this.
+            for p, tasks in project.filteredTasks(filter_str):
+                # Do something
+
+        Args:
+            filter: String to filter on. t is the task reference for each t
+                in tasks. This filter must follow python3 conditional syntax.
+            root: The caller should provide this to indicate the relative path
+                from where they loaded the project. Project instances don't
+                store this information.
+
+        Returns:
+            Each yield returns a tuple of project, path, tasks. Project is
+            this project's reference. path is the recursive path taken down
+            to the current level from the caller. tasks is the list of tasks
+            which matched the filter.
         """
         filter = filter or 'True'
 
-        l_ = [f'{root}/{t.id} ... {t.title}' for t in self.tasks.values() if eval(filter)]
-        for p in self.projects.values():
-            l_.extend(p.listTasks(filter, f'{root}/{p.name}'))
+        tasks = [t for t in self.tasks.values() if eval(filter)]
+        yield self, root, sorted(tasks)
 
-        return l_
+        for k in sorted(self.projects):
+            yield from self.projects[k].filteredTasks(filter, f'{root}/{k}')
 
     def __getattr__(self, key):
         """ Expose keys in values as attributes.

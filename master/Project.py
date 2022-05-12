@@ -520,6 +520,24 @@ class Project:
 
         self.modified = {}
 
+    def listTasks(self, filter='', root='.'):
+        """ Return a list of tasks based on some filter.
+
+        Designed to help the user click on and then edit an interesting task.
+
+        ArgS:
+            filter: String to. t is the task reference for each t in tasks.
+                This filter must follow python3 conditional syntax.
+            root: Don't set this.
+        """
+        filter = filter or 'True'
+
+        l = [f'{root}/{t.id} ... {t.title}' for t in self.tasks.values() if eval(filter)]
+        for p in self.projects.values():
+            l.extend(p.listTasks(filter, f'{root}/{p.name}'))
+
+        return l
+
     def __getattr__(self, key):
         """ Expose keys in values as attributes.
         """

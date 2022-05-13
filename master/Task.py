@@ -5,7 +5,7 @@ import parsedatetime as pdt
 
 
 def parse_date(date):
-    """ Generate a more human-readable title.
+    """ Parse a date str into Y-m-d and the weekday.
 
     Returns:
         A string showing the date in Y-m-d format and the weekday.
@@ -24,6 +24,34 @@ def parse_date(date):
     days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun']
 
     return '{}-{:02d}-{:02d}, {}'.format(d.year, d.month, d.day, days[d.weekday()])
+
+
+class _TaskDate:
+    """ Special date class used by Task
+
+    Overloads comparison operators so task.*date* attributes will parse
+    the strings they get as dates for comparison. This allows tasks to 
+    compare their *date* fields to strings like "last wednesday" correctly.
+    """
+    def __init__(self, date):
+        """ date needs to be parseable according to parse_date
+
+        Raises:
+            ValueError if the date could not be parsed.
+        """
+        self.date = parse_date(str(date))
+
+    def __str__(self):
+        return self.date
+
+    def __lt__(self, o):
+        return self.date < parse_date(str(o))
+
+    def __gt__(self, o):
+        return self.date > parse_date(str(o))
+
+    def __eq__(self, o):
+        return self.date == parse_date(str(o))
 
 
 class Task:
@@ -84,7 +112,7 @@ class Task:
         # Try to parse dates
         for k, v in self.attributes.items():
             if 'date' in k and v:
-                self.attributes[k] = parse_date(v)
+                self.attributes[k] = _TaskDate(v)
 
     def check(self):
         """ Check the validity of this task's attributes.
@@ -163,7 +191,7 @@ class Task:
                 value = value.replace(',', ' ').replace(':', ' ').split()
                 value = sorted(list(set(value)))
             elif 'date' in key:  # Try to parse dates
-                value = parse_date(value)
+                value = _TaskDate(value)
 
             attributes[key] = value
             rst = rst[:-1]

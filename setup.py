@@ -19,7 +19,9 @@ install_requires = []
 if 'DEBBUILD' not in os.environ:
     install_requires = [
         'argcomplete >= 1.0',
+        'icalendar',
         'parsedatetime < 3.0',
+        'recurring-ical-events',
     ]
 
 version=sp.check_output(['git','describe','--tags'], text=True).strip()

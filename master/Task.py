@@ -2,35 +2,56 @@ import re
 from datetime import datetime
 
 import parsedatetime as pdt
+from icalendar import Event
 
 
 def parse_date(date):
-    """ Parse a date str into Y-m-d and the weekday.
+    """ Parse a str into a datetime object
+
+    This datetime object will only have year, month, and day set.
 
     Returns:
-        A string showing the date in Y-m-d format and the weekday.
+        A datetime object.
 
     Raises:
         ValueError if date could not be parsed.
     """
+    if type(date) is datetime:
+        return date
+    else:
+        date = str(date)
+
     cal = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
     d, flag = cal.parse(date)
 
     if not flag:
-        raise ValueError('The date "{}" could not be parsed.'.format(date))
+        raise ValueError(f'The date "{date}" could not be parsed.')
 
-    d = datetime(*d[:3])
+    return datetime(*d[:3])
 
-    days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun']
 
-    return '{}-{:02d}-{:02d}, {}'.format(d.year, d.month, d.day, days[d.weekday()])
+def parse_rrule(rule):
+    """ Parse an icalendar rrule str into a dict.
+
+    The icalendar.Event class expects its rrule as a dict, not a str.
+
+    Raises:
+        ValueError if the rrule str wasn't valid.
+    """
+    rules = rule.split(';')
+    d = {}
+    for r in rules:
+        k, v = r.split('=')
+        d[k] = v
+
+    return d
 
 
 class _TaskDate:
     """ Special date class used by Task
 
     Overloads comparison operators so task.*date* attributes will parse
-    the strings they get as dates for comparison. This allows tasks to 
+    the strings they get as dates for comparison. This allows tasks to
     compare their *date* fields to strings like "last wednesday" correctly.
     """
     def __init__(self, date):
@@ -39,19 +60,32 @@ class _TaskDate:
         Raises:
             ValueError if the date could not be parsed.
         """
-        self.date = parse_date(str(date))
+        self.date = parse_date(date)
 
     def __str__(self):
-        return self.date
+        days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun']
+        d = self.date
+        weekday = days[d.weekday()]
+
+        return f'{d.year}-{d.month:02d}-{d.day:02d}, {weekday}'
 
     def __lt__(self, o):
-        return self.date < parse_date(str(o))
+        if type(o) is _TaskDate:
+            return self.date < o.date
+
+        return self.date < parse_date(o)
 
     def __gt__(self, o):
-        return self.date > parse_date(str(o))
+        if type(o) is _TaskDate:
+            return self.date > o.date
+
+        return self.date > parse_date(o)
 
     def __eq__(self, o):
-        return self.date == parse_date(str(o))
+        if type(o) is _TaskDate:
+            return self.date == o.date
+
+        return self.date == parse_date(o)
 
 
 class Task:
@@ -113,6 +147,32 @@ class Task:
         for k, v in self.attributes.items():
             if 'date' in k and v:
                 self.attributes[k] = _TaskDate(v)
+
+    def asIcsEvent(self, uid):
+        """ Return an icalendar.Event class from this Task's data.
+
+        Returns:
+            An icalendar.Event created from this instance's data.
+        """
+        event = Event()
+        event['uid'] = uid
+        event.add('summary', self.description)
+
+        today = parse_date('today')
+        dtfmt = '%Y-%m-%d, %a'
+
+        # recurring tasks should also have start_date
+        if 'recurring' in self:
+            event.add('rrule', parse_rrule(self.recurring))
+            event.add('dtstart', self.start_date.date)
+            event.add('dtstamp', today)
+        else:
+            date = dt.strptime(str(self.due_date), dtfmt)
+            event.add('dtstart', date)
+            event.add('dtend', date)
+            event.add('dtstamp', dt.today())
+
+        return event
 
     def check(self):
         """ Check the validity of this task's attributes.
@@ -276,3 +336,11 @@ class Task:
                 return self.attributes[key]
             except KeyError as e:
                 raise AttributeError(f"'Task' object has no attribute {key}")
+
+    def __contains__(self, key):
+        """ Return True if key is in the Task's dict or attributes.
+        """
+        if key in self.__dict__:
+            return True
+
+        return key in self.attributes

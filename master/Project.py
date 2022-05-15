@@ -201,7 +201,7 @@ class Project:
             else:
                 prefix = ''.join([x[0] for x in prefix]).upper()
 
-            s = s.replace('__DEFAULT_PREFIX', f'{prefix}_')
+            s = s.replace('__DEFAULT_PREFIX', f'{prefix}')
 
         try:
             os.mkdir(path)
@@ -242,7 +242,7 @@ class Project:
 
         if not pattern:
             prefix = project.settings['task_prefix']
-            pattern = f'^{prefix}[0-9]+.rst$'
+            pattern = f'^{prefix}_[0-9]+.rst$'
 
         # Load tasks.
         invalid_tasks = ''
@@ -437,7 +437,7 @@ class Project:
 
         attrs['creator'] = creator
         attrs['creation_date'] = 'today'
-        attrs['id'] = self.settings['task_prefix'] + str(self.max_id + 1)
+        attrs['id'] = self.settings['task_prefix'] + '_' + str(self.max_id + 1)
 
         task = Task(title, description, attrs)
         self.addTask(task)

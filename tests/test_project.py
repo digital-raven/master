@@ -36,7 +36,7 @@ class TestProject(unittest.TestCase):
         self.assertEqual(exp_attr, p.settings['default_attributes'])
         self.assertEqual({'stage': 'todo'}, p.settings['default_attribute_values'])
         self.assertEqual(exp_name, p.settings['project_name'])
-        self.assertEqual('TP_', p.settings['task_prefix'])
+        self.assertEqual('TP', p.settings['task_prefix'])
 
     def test_loading_from_disk(self):
         """ A project should be loadable from disk.

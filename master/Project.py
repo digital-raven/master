@@ -7,6 +7,7 @@ import tempfile
 from subprocess import call
 
 from master import colonconf
+from master.configs.default_conf import default_conf
 from master.Task import Task
 
 
@@ -165,7 +166,6 @@ class Project:
             path: Dir where to init the project.
             creator: Username of the project's creator. Will have absolute
                 authority over this and any projects owned by this project.
-            conf: Path to configuration outlining default settings.
 
         Returns:
             The newly initialized Project.
@@ -178,42 +178,44 @@ class Project:
         if os.path.exists(f'{path}/.master.project'):
             raise FileExistsError(f'Location {path} is already host to a project.')
 
+        # Default the owner of the project to its creator.
+        if conf:
+            with open(conf) as f:
+                s = f.read()
+        else:
+            s = default_conf
+
+        if '__DEFAULT_OWNER' in s:
+            s = s.replace('__DEFAULT_OWNER', creator)
+
+        # Set the name of the project to the containing directory.
+        if '__DEFAULT_PROJECT_NAME' in s:
+            project_name = os.path.basename(path)
+            s = s.replace('__DEFAULT_PROJECT_NAME', project_name)
+
+        # Determine the task prefix
+        if '__DEFAULT_PREFIX' in s:
+            prefix = project_name.split('_')
+            if len(prefix) == 1:
+                prefix = ''.join(prefix[0]).upper()
+            else:
+                prefix = ''.join([x[0] for x in prefix]).upper()
+
+            s = s.replace('__DEFAULT_PREFIX', f'{prefix}_')
+
         try:
             os.mkdir(path)
         except FileExistsError:
             pass
 
-        settings = {
-            'default_attributes': '',
-            'default_attribute_values': '',
-        }
-
-        if conf:
-            settings.update(colonconf.load(f'{conf}'))
-
-        # Default the owner of the project to its creator.
-        settings['owners'] = creator
-
-        # Set the name of the project to the containing directory.
-        settings['project_name'] = os.path.basename(path)
-
-        # Determine the task prefix
-        prefix = settings['project_name'].split('_')
-        if len(prefix) == 1:
-            prefix = ''.join(prefix[0]).upper()
-        else:
-            prefix = ''.join([x[0] for x in prefix]).upper()
-
-        settings['task_prefix'] = f'{prefix}_'
-
-        # Write the configuration to file
-        colonconf.dump(f'{path}/.master.project', settings)
+        with open(f'{path}/.master.project', 'w') as f:
+            f.write(s)
 
         # Create the project by loading it back
         return Project.loadFromDisk(path)
 
     @classmethod
-    def loadFromDisk(cls, path, pattern='', _root_caller=True):
+    def loadFromDisk(cls, path, pattern=''):
         """ Load a project from disk.
 
         Projects will be recursively loaded from a path on the
@@ -224,7 +226,6 @@ class Project:
             path: Dir where projects are located.
             pattern: Load files that match the pattern. Will default
                 to ^{task_prefix}[0-9]+.rst$ if not provided.
-            _root_caller: Don't set this. Flag to indicate first call.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.

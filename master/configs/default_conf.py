@@ -1,3 +1,4 @@
+default_conf = """\
 ################################################################################
 # This is the default configuration for new projects. The settings
 # in this file will be copied to new projects as .master.project
@@ -7,13 +8,13 @@
 # List of users who have ultimate access to this project and every
 # project below this level.
 #
-owners =
+owners = __DEFAULT_OWNER
 
 ################################################################################
 # Name of the project. Will be named after the basename of the
 # containing folder by default, but may be changed later.
 #
-project_name =
+project_name = __DEFAULT_PROJECT_NAME
 
 ################################################################################
 # Attributes that each new task under this project will have by default. Place
@@ -50,4 +51,5 @@ default_attribute_values =
 # This will default to the first few characters (4 or fewer) of the project's
 # name, but may be changed later.
 #
-task_prefix =
+task_prefix = __DEFAULT_PREFIX
+"""

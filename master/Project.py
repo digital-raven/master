@@ -86,7 +86,7 @@ class Project:
             ValueError if any of the tasks were invalid.
         """
         self.name = name
-        self.path = os.path.abspath(path)
+        self.path = path
         self.projects = projects
         self.tasks = {}
         self.settings = settings
@@ -174,7 +174,6 @@ class Project:
             FileExistsError: A project already exists at the specified path.
             PermissionError: User lacks permissions to create a new project.
         """
-        path = os.path.abspath(path)
         if os.path.exists(f'{path}/.master.project'):
             raise FileExistsError(f'Location {path} is already host to a project.')
 
@@ -190,7 +189,8 @@ class Project:
 
         # Set the name of the project to the containing directory.
         if '__DEFAULT_PROJECT_NAME' in s:
-            project_name = os.path.basename(path)
+            abspath = os.path.abspath(path)
+            project_name = os.path.basename(abspath)
             s = s.replace('__DEFAULT_PROJECT_NAME', project_name)
 
         # Determine the task prefix

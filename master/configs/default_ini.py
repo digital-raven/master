@@ -1,3 +1,4 @@
+default_ini='''\
 # This file will be copied to $HOME/.config/master/ on master's first run. Edit
 # the information in this .ini file to your preferences.
 #
@@ -8,3 +9,4 @@
 #
 username =
 email =
+'''

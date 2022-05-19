@@ -5,9 +5,9 @@ import configparser
 import os
 from pathlib import Path
 from master.util.edit import edit
+from master.configs.default_ini import default_ini
 
 
-default_conf = '/etc/master/default.ini'
 user_confdir = '{}/.config/master'.format(Path.home())
 user_conf = '{}/master.ini'.format(user_confdir)
 
@@ -23,11 +23,7 @@ def do_first_time_setup():
         any of the exceptions raised by master.util.edit
     """
     os.makedirs(user_confdir, exist_ok=True)
-
-    with open(default_conf) as f:
-        s = f.read()
-
-    edit(s, output_file=user_conf)
+    edit(default_ini, output_file=user_conf)
 
 
 def add_config_args(args, config=None):

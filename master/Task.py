@@ -30,21 +30,37 @@ def parse_date(date):
     return datetime(*d[:3])
 
 
-def parse_rrule(rule):
+def parse_rrule(rrule):
     """ Parse an icalendar rrule str into a dict.
 
-    The icalendar.Event class expects its rrule as a dict, not a str.
+    Follow the ICS convention for rrules.
+
+    https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
+
+    But omit the leading "RRULE:".
+
+    Use the return of this function like this.
+
+        event['rrule'] = parse_rrule(some_rrule))
+
+    Arg:
+        rrule: The str rrule to parse.
+
+    Returns:
+        An rrule object that can be directly set as an icalendar.Event's
+        'rrule' index.
 
     Raises:
         ValueError if the rrule str wasn't valid.
     """
-    rules = rule.split(';')
-    d = {}
-    for r in rules:
-        k, v = r.split('=')
-        d[k] = v
+    rrule =  'RRULE:' + rrule
+    s = '\n'.join(['BEGIN:VEVENT', rrule, 'END:VEVENT'])
+    event = Event.from_ical(s)
 
-    return d
+    if not len(event['rrule']):
+        raise ValueError('Invalid rrule')
+
+    return event['rrule']
 
 
 class _TaskDate:
@@ -151,26 +167,49 @@ class Task:
     def asIcsEvent(self, uid):
         """ Return an icalendar.Event class from this Task's data.
 
-        Returns:
-            An icalendar.Event created from this instance's data.
-        """
-        event = Event()
-        event['uid'] = uid
-        event.add('summary', self.description)
+        A task must have either a start_date or a due_date to be
+        considered capable of turning into an ICS Event.
 
-        today = parse_date('today')
-        dtfmt = '%Y-%m-%d, %a'
+        This function does not support all ICS Event values. The
+        supported values are...
+        - uid
+        - dtstamp: Initialized to the time this method was called.
+        - summary
+        - description
+        - dtstart: as start_date or due_date
+        - dtend: as end_date
+        - rrule: as recurring
+
+        Returns:
+            An icalendar.Event created from this instance's data. If
+            this task doesn't have a due_date or start_date field then
+            None will be returned.
+        """
+        exp = ['start_date', 'due_date']
+        if not any([x in self.attributes and self.attributes[x] for x in exp]):
+            return None
+
+        event = Event()
+        event.add('uid', uid)
+        event.add('summary', self.title)
+        event.add('description', self.description)
+
+        event.add('dtstamp', parse_date('today'))
+
+        dtstart = None
+        if 'start_date' in self and self.start_date:
+            dtstart = self.start_date.date
+            event.add('dtstart', dtstart)
+        elif 'due_date' in self and self.due_date:
+            dtstart = self.due_date.date
+            event.add('dtstart', dtstart)
 
         # recurring tasks should also have start_date
-        if 'recurring' in self:
-            event.add('rrule', parse_rrule(self.recurring))
-            event.add('dtstart', self.start_date.date)
-            event.add('dtstamp', today)
-        else:
-            date = dt.strptime(str(self.due_date), dtfmt)
-            event.add('dtstart', date)
-            event.add('dtend', date)
-            event.add('dtstamp', dt.today())
+        if 'recurring' in self and self.recurring:
+            event['rrule'] = parse_rrule(self.recurring)
+
+        if 'end_date' in self and self.end_date:
+            event.add('dtend', self.end_date.date)
 
         return event
 

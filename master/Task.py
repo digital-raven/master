@@ -1,14 +1,18 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import parsedatetime as pdt
 from icalendar import Event
 
 
-def parse_date(date):
+def parse_date(date, parse_time=False):
     """ Parse a str into a datetime object
 
-    This datetime object will only have year, month, and day set.
+    This datetime object will only have year, month, and day by default.
+
+    Args:
+        date: Date to parse.
+        parse_time: If true, then also parse the time to the hour and minute.
 
     Returns:
         A datetime object.
@@ -27,7 +31,32 @@ def parse_date(date):
     if not flag:
         raise ValueError(f'The date "{date}" could not be parsed.')
 
+    if parse_time:
+        return datetime(*d[:5])
+
     return datetime(*d[:3])
+
+
+def parse_duration(duration):
+    """ Return a timedelta from a duration str.
+
+    Can handle humanized durations. Like "40min" or "1 hour". Handles
+    down to minute precision.
+
+    Args:
+        duration: Duration to turn into timedelta.
+
+    Returns:
+        timedelta object.
+    """
+    if type(duration) is timedelta:
+        return duration
+
+    later = parse_date(duration, parse_time=True)
+    now = datetime.now()
+    now = datetime(now.year, now.month, now.day, now.hour, now.minute)
+
+    return later - now
 
 
 def parse_rrule(rrule):
@@ -176,8 +205,8 @@ class Task:
         - dtstamp: Initialized to the time this method was called.
         - summary
         - description
-        - dtstart: as start_date or due_date
-        - dtend: as end_date
+        - dtstart: as start_date or due_date with respective *_time's
+        - dtend: as end_date + end_time (optional)
         - rrule: as recurring
 
         Returns:
@@ -199,16 +228,34 @@ class Task:
         dtstart = None
         if 'start_date' in self and self.start_date:
             dtstart = self.start_date.date
-            event.add('dtstart', dtstart)
+            if 'start_time' in self and self.start_time:
+                s = f'{self.start_date} {self.start_time}'
+                dtstart = parse_date(s, parse_time=True)
         elif 'due_date' in self and self.due_date:
             dtstart = self.due_date.date
+            if 'due_time' in self and self.due_time:
+                s = f'{self.due_date} {self.due_time}'
+                dtstart = parse_date(s, parse_time=True)
+
+        if dtstart:
             event.add('dtstart', dtstart)
 
         # recurring tasks should also have start_date
         if 'recurring' in self and self.recurring:
             event['rrule'] = parse_rrule(self.recurring)
 
+        # Add duration. Should already be a timedelta
+        if 'duration' in self and self.duration:
+            event.add('duration', parse_duration(self.duration))
+
+        # Parse dtend
+        dtend = None
         if 'end_date' in self and self.end_date:
+            dtend = self.end_date.date
+            if 'end_time' in self and self.end_time:
+                s = f'{self.end_date} {self.end_time}'
+                dtend = parse_date(s, parse_time=True)
+        if dtend:
             event.add('dtend', self.end_date.date)
 
         return event

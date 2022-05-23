@@ -15,7 +15,8 @@ def do_todo(args):
     """
     project = Project.loadFromDisk('./')
 
-    today = parse_date('today')
+    morning = parse_date('today')
+    midnight = parse_date('today 11:59pm', parse_time=True)
 
     cal = Calendar()
     events = []
@@ -23,5 +24,46 @@ def do_todo(args):
         events = [t.asIcsEvent(f'{root}/{t.title}') for t in tasks]
         [cal.add_component(e) for e in events if e]
 
-    for event in recurring_ical_events.of(cal).at(today):
-        print(event['uid'])
+    general = []
+    specific = []
+    for e in recurring_ical_events.of(cal).between(morning, midnight):
+        d = e['dtstart'].dt
+        if d.hour == 0 and d.minute == 0:
+            general.append(e)
+        else:
+            specific.append(e)
+
+    general.sort(key=lambda x: x['uid'])
+    specific.sort(key=lambda x: x['dtstart'])
+
+    if general:
+        print('')
+        print('Sometime today\n==============')
+        print('\n'.join([e['uid'] for e in general]) + '\n')
+
+    if specific:
+        print('But at specific times...\n========================')
+        for e in specific:
+            start = e['dtstart'].dt
+            s = f'{start.hour}:{start.minute}'
+            if 'duration' in e:
+                td = e['duration'].dt
+                days = td.days
+                seconds = td.seconds
+                hours = int(td.seconds / 3600)
+                seconds = max(seconds - hours * 3600, 0)
+                minutes = int(seconds / 60)
+
+                s += ' for '
+                l = []
+                if days:
+                    l.append(f'{days} days')
+                if hours:
+                    l.append(f'{hours} hours')
+                if minutes:
+                    l.append(f'{minutes} minutes')
+                s += ' and '.join(l)
+                
+            s += f', {e["uid"]}'
+
+            print(s)

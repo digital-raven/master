@@ -4,7 +4,7 @@ from master.util.edit import edit
 
 def do_init(args):
     p = Project.initOnDisk(args.path, args.username)
-    conffile = args.conf or f'{p.path}/.master.project'
+    conffile = args.conf or f'{p.path}/project.yaml'
 
     with open(conffile) as f:
         s = f.read()

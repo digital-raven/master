@@ -8,10 +8,13 @@ Funniness
 ---------
 10/10
 
-assignee: 
-creation_date: 2022-04-19, Tues
+.. attributes
+assignee: null
+creation_date: 2022-04-19, Tue
 creator: shillenburg
 id: PROJ_24
 project: project
 stage: todo
 tags: patrick, spongebob
+
+.. attributes

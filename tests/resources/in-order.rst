@@ -8,6 +8,7 @@ Funniness
 ---------
 10/10
 
+.. attributes
 assignee: 
 creation_date: 2022-05-04, Wed
 creator: shillenburg
@@ -15,3 +16,5 @@ id: PROJ_24
 project: project
 stage: todo
 tags: patrick, spongebob
+
+.. attributes

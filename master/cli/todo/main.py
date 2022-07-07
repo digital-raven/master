@@ -16,7 +16,7 @@ def do_todo(args):
     project = Project.loadFromDisk('./')
 
     morning = parse_date('today')
-    midnight = parse_date('today 11:59pm', parse_time=True)
+    midnight = parse_date('today 11:59pm')
 
     cal = Calendar()
     events = []
@@ -55,15 +55,15 @@ def do_todo(args):
                 minutes = int(seconds / 60)
 
                 s += ' for '
-                l = []
+                l_ = []
                 if days:
-                    l.append(f'{days} days')
+                    l_.append(f'{days} days')
                 if hours:
-                    l.append(f'{hours} hours')
+                    l_.append(f'{hours} hours')
                 if minutes:
-                    l.append(f'{minutes} minutes')
-                s += ' and '.join(l)
-                
+                    l_.append(f'{minutes} minutes')
+                s += ' and '.join(l_)
+
             s += f', {e["uid"]}'
 
             print(s)

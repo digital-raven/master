@@ -2,12 +2,13 @@
 """
 import os
 import re
-import sys
 import tempfile
 from subprocess import call
 
-from master import colonconf
-from master.configs.default_conf import default_conf
+import yaml
+
+from master.Attributes import Attributes
+from master.configs.basic import basic
 from master.Task import Task
 
 
@@ -70,7 +71,7 @@ class Project:
 
         Any .rst files in the dir are assumed to be tasks. Any dirs are assumed
         to be subprojects. Each project has a general settings file that is
-        always called ".master.project".
+        always called "project.yaml".
 
         This is expected to be a singleton pattern; one and only one project
         instance should be loaded at any given root
@@ -80,7 +81,6 @@ class Project:
             path: Path of the project on disk.
             projects: Dictionary of other projects under this one.
             tasks: List of tasks to add.
-            settings: Dict of config settings loaded from project's conf.
 
         Raises:
             ValueError if any of the tasks were invalid.
@@ -89,65 +89,21 @@ class Project:
         self.path = path
         self.projects = projects
         self.tasks = {}
-        self.settings = settings
+        self.settings = Attributes(settings)
 
         # List of modified tasks.
         self.modified = {}
         self.max_id = 0
 
-        # Load the default attributes
-        if 'default_attributes' in self.settings:
-            tmp = {x.strip() for x in self.settings['default_attributes'].splitlines() if x.strip()}
-            self.settings['default_attributes'] = tmp
-        else:
-            self.settings['default_attributes'] = set()
-
-        # Load the default_attribute_values
-        if 'default_attribute_values' in self.settings:
-            tmp = {}
-            lines = self.settings['default_attribute_values'].splitlines()
-            for df in lines:
-                df = df.split(':')
-                tmp[df[0].strip()] = ':'.join(df[1:]).strip()
-            self.settings['default_attribute_values'] = tmp
-        else:
-            self.settings['default_attribute_values'] = dict()
-
-        self.check()
-
         # Add the tasks to this project
         for task in tasks:
             self.addTask(task, task.id)
-
-    def check(self):
-        """ Ensure all settings are valid python3 identifiers.
-
-        Raises:
-            ValueError if a project setting was invalid.
-        """
-        invalids = []
-        for k in self.settings:
-            if not k.isidentifier():
-                invalids.append(k)
-
-        for k in self.settings['default_attributes']:
-            if not k.isidentifier():
-                invalids.append(k)
-
-        for k in self.settings['default_attribute_values']:
-            if not k.isidentifier():
-                invalids.append(k)
-
-        if invalids:
-            invalids = ', '.join(invalids)
-            s = 'The following project settings are invalid identifiers'
-            raise ValueError(f'{s}: {invalids}')
 
     @classmethod
     def initOnDisk(cls, path, creator, conf=''):
         """ Init a new project on the disk.
 
-        A project is initialized by creating a .master.project file in the
+        A project is initialized by creating a project.yaml file in the
         directory. No sub-projects or tasks will be created. Pre-existing
         files will not be modified, but this function is designed to be called
         on a non-existent or empty directory.
@@ -155,8 +111,6 @@ class Project:
         The default, barebones settings that will be created by default are...
 
             owners = creator
-            default_attributes = ''
-            default_attribute_values  = ''
             project_name = <basename of path>
             task_prefix = <ALL CAPS of project_name> or..
                 <ALL CAPS OF FIRST LETTER OF EACH WORD IN PROJECT NAME> if
@@ -166,6 +120,7 @@ class Project:
             path: Dir where to init the project.
             creator: Username of the project's creator. Will have absolute
                 authority over this and any projects owned by this project.
+            conf: Text or path of file to be used as the project's configuration.
 
         Returns:
             The newly initialized Project.
@@ -173,19 +128,18 @@ class Project:
         Raises:
             FileExistsError: A project already exists at the specified path.
             PermissionError: User lacks permissions to create a new project.
+            ValueError: Invalid configuration.
         """
-        if os.path.exists(f'{path}/.master.project'):
+        if os.path.exists(f'{path}/project.yaml'):
             raise FileExistsError(f'Location {path} is already host to a project.')
 
-        # Default the owner of the project to its creator.
-        if conf:
+        s = conf if conf else basic
+        if len(s.splitlines()) == 1:
             with open(conf) as f:
                 s = f.read()
-        else:
-            s = default_conf
 
-        if '__DEFAULT_OWNER' in s:
-            s = s.replace('__DEFAULT_OWNER', creator)
+        # Default the owner of the project to its creator.
+        s = s.replace('__DEFAULT_OWNER', creator)
 
         # Set the name of the project to the containing directory.
         if '__DEFAULT_PROJECT_NAME' in s:
@@ -195,7 +149,7 @@ class Project:
 
         # Determine the task prefix
         if '__DEFAULT_PREFIX' in s:
-            prefix = project_name.split('_')
+            prefix = project_name.replace('-', '_').split('_')
             if len(prefix) == 1:
                 prefix = ''.join(prefix[0]).upper()
             else:
@@ -203,29 +157,35 @@ class Project:
 
             s = s.replace('__DEFAULT_PREFIX', f'{prefix}')
 
+        # Make sure the conf is valid yaml
+        try:
+            y = yaml.safe_load(s)
+            if type(y) is str:
+                raise ValueError('The provided config for this project was not valid yaml.')
+        except yaml.scanner.ScannerError as e:
+            raise ValueError(e)
+
         try:
             os.mkdir(path)
         except FileExistsError:
             pass
 
-        with open(f'{path}/.master.project', 'w') as f:
+        with open(f'{path}/project.yaml', 'w') as f:
             f.write(s)
 
         # Create the project by loading it back
         return Project.loadFromDisk(path)
 
     @classmethod
-    def loadFromDisk(cls, path, pattern=''):
+    def loadFromDisk(cls, path):
         """ Load a project from disk.
 
         Projects will be recursively loaded from a path on the
-        filesystem. Each directory that contains a .master.project
+        filesystem. Each directory that contains a project.yaml
         file will be considered as a project.
 
         Args:
             path: Dir where projects are located.
-            pattern: Load files that match the pattern. Will default
-                to ^{task_prefix}[0-9]+.rst$ if not provided.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
@@ -233,18 +193,22 @@ class Project:
         r, d, f = readdir_(path)
 
         try:
-            settings = colonconf.load(f'{r}/.master.project')
+            with open(f'{r}/project.yaml') as fp:
+                settings = yaml.safe_load(fp.read())
         except (FileNotFoundError, PermissionError):
             return None
 
         # Init the project with current settings.
         project = Project(settings['project_name'], r, {}, {}, settings)
 
-        if not pattern:
-            prefix = project.settings['task_prefix']
+        # Load tasks.
+        prefix = project.settings['task_prefix']
+        pattern = ''
+        if prefix == '__date':
+            pattern = r'^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\.*.rst$'
+        else:
             pattern = f'^{prefix}_[0-9]+.rst$'
 
-        # Load tasks.
         invalid_tasks = ''
         taskfiles = [f'{r}/{x}' for x in f if re.search(pattern, x)]
         try:
@@ -326,16 +290,7 @@ class Project:
         if corrected:
             self.modified[task.id] = task
 
-        self._addTask(task)
-
-    def _addTask(self, task):
-        """ Blindly adds a task without correction
-
-        Only send corrected tasks to this method.
-        """
         self.tasks[task.id] = task
-
-        # Update max_id
         cur_id = int(task.id.split('_')[-1])
         self.max_id = max(self.max_id, cur_id)
 
@@ -358,7 +313,7 @@ class Project:
 
         # Default the creation_date to 'today'
         if 'creation_date' not in t.attributes:
-            t.attributes['creation_date'] = 'today'
+            t.attributes['creation_date'] = 'now'
             corrected = True
 
         # Ensure the creation_date isn't modified.
@@ -376,18 +331,9 @@ class Project:
             t.attributes['id'] = exp_id
             corrected = True
 
-        # Check the ID
-        if not re.search('_[0-9]+$', t.id):
-            raise ValueError(f'Invalid ID {t.id}')
-
         # The task always belongs to this project.
         if 'project' not in t.attributes or t.project != self.name:
             t.attributes['project'] = self.name
-            corrected = True
-
-        # All tasks require a stage
-        if 'stage' not in t.attributes:
-            t.attributes['stage'] = 'todo'
             corrected = True
 
         # All tasks must have tags as a list.
@@ -401,13 +347,10 @@ class Project:
             corrected = True
 
         # Ensure the task has all expected default attributes.
-        for k in self.settings['default_attributes']:
-            if k not in t.attributes:
-                t.attributes[k] = ''
+        for k, v in self.settings['default_attributes'].items():
+            if k not in t.attributes or (t.attributes[k] is None and v is not None):
+                t.attributes[k] = v
                 corrected = True
-
-        t.check()
-        t.refresh()
 
         return corrected
 
@@ -432,8 +375,8 @@ class Project:
         """
         attrs = attrs or {}
 
-        # Set default_attribute_values
-        attrs.update(self.settings['default_attribute_values'])
+        # Set default attributes
+        attrs.update(self.settings['default_attributes'])
 
         attrs['creator'] = creator
         attrs['creation_date'] = 'today'
@@ -463,9 +406,6 @@ class Project:
         orig_id = task.id
         orig_creation_date = task.creation_date
         orig_creator = task.creator
-
-        # Correct the task before and after editing.
-        self._correctTask(task, orig_id)
 
         if editor:
             text = editTask(task, editor)

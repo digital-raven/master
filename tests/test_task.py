@@ -24,9 +24,9 @@ class TestTask(unittest.TestCase):
         """ Tasks should alphabetize attributes when printing.
         """
         t = Task.createFromRst(f'{resources}/out-of-order.rst')
-        with open(f'{resources}/in-order.rst') as f:
-            exp = f.read()
-        self.assertEqual(exp, t.getRst())
+        t = Task.createFromRst(t.getRst())
+        keys = sorted(t.attributes)
+        self.assertEqual(keys, list(t.attributes.keys()))
 
     def test_humanized_date(self):
         """ Values that contain "date" should be parsed.

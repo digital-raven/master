@@ -30,12 +30,12 @@ class TestProject(unittest.TestCase):
         self.assertEqual(dict(), p.projects)
         self.assertEqual(dict(), p.tasks)
 
-        exp_attr = {'creation_date', 'creator', 'id', 'project', 'stage', 'tags'}
+        exp_attr = {'creation_date': None, 'creator': None, 'id': None, 'project': None, 'stage': 'todo', 'tags': None}
 
-        self.assertEqual('tester', p.settings['owners'])
+        self.assertEqual(['tester'], p.settings['owners'])
         self.assertEqual(exp_attr, p.settings['default_attributes'])
-        self.assertEqual({'stage': 'todo'}, p.settings['default_attribute_values'])
         self.assertEqual(exp_name, p.settings['project_name'])
+        self.assertEqual('todo', p.settings['default_attributes']['stage'])
         self.assertEqual('TP', p.settings['task_prefix'])
 
     def test_loading_from_disk(self):
@@ -62,6 +62,7 @@ class TestProject(unittest.TestCase):
         self.assertEqual('TP_1: My title', t.title)
         self.assertEqual('description', t.description)
         self.assertEqual('test_project', t.project)
+        self.assertEqual([], t.tags)
 
     def test_project_creation_with_conf(self):
         """ Projects created with a custom conf should have those settings.
@@ -69,13 +70,13 @@ class TestProject(unittest.TestCase):
         Also that dates aren't processed if they're empty strings.
         """
         path = f'{resources}/test_project'
-        p = Project.initOnDisk(path, 'tester', f'{resources}/custom.conf')
+        p = Project.initOnDisk(path, 'tester', f'{resources}/custom.yaml')
         self.assertTrue('due_date' in p.settings['default_attributes'])
-        self.assertTrue('testattr' in p.settings['default_attribute_values'])
+        self.assertTrue('testattr' in p.settings['default_attributes'])
 
         t = p.createTask('spongebob', 'My title', 'description')
 
-        self.assertEqual('', t.due_date)
+        self.assertEqual(None, t.due_date)
         self.assertEqual('Im a value', t.testattr)
 
     def test_project_creation_with_conf_not_exist(self):
@@ -89,7 +90,7 @@ class TestProject(unittest.TestCase):
         """
         os.mkdir(f'{resources}/test_project')
         p = Project.initOnDisk(f'{resources}/test_project', 'tester')
-        self.assertTrue(os.path.exists(f'{resources}/test_project/.master.project'))
+        self.assertTrue(os.path.exists(f'{resources}/test_project/project.yaml'))
 
     def test_project_creation_at_existing_project(self):
         """ It should fail to init a project in an existing project.
@@ -132,6 +133,12 @@ class TestProject(unittest.TestCase):
 
         self.assertIs(p.sub_project, sp1)
         self.assertEqual(sp1.__dict__, sp2.__dict__)
+
+    def test_invalid_project_yaml(self):
+        """ Invalid yaml should produce a ValueError.
+        """
+        with self.assertRaises(ValueError):
+            p = Project.initOnDisk(f'{resources}/test_project', 'tester', f'{resources}/invalid-project.yaml')
 
 
 if __name__ == '__main__':

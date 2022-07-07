@@ -1,62 +1,12 @@
 import re
-from datetime import datetime, timedelta
+import yaml
 
-import parsedatetime as pdt
 from icalendar import Event
 
-
-def parse_date(date, parse_time=False):
-    """ Parse a str into a datetime object
-
-    This datetime object will only have year, month, and day by default.
-
-    Args:
-        date: Date to parse.
-        parse_time: If true, then also parse the time to the hour and minute.
-
-    Returns:
-        A datetime object.
-
-    Raises:
-        ValueError if date could not be parsed.
-    """
-    if type(date) is datetime:
-        return date
-    else:
-        date = str(date)
-
-    cal = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
-    d, flag = cal.parse(date)
-
-    if not flag:
-        raise ValueError(f'The date "{date}" could not be parsed.')
-
-    if parse_time:
-        return datetime(*d[:5])
-
-    return datetime(*d[:3])
-
-
-def parse_duration(duration):
-    """ Return a timedelta from a duration str.
-
-    Can handle humanized durations. Like "40min" or "1 hour". Handles
-    down to minute precision.
-
-    Args:
-        duration: Duration to turn into timedelta.
-
-    Returns:
-        timedelta object.
-    """
-    if type(duration) is timedelta:
-        return duration
-
-    later = parse_date(duration, parse_time=True)
-    now = datetime.now()
-    now = datetime(now.year, now.month, now.day, now.hour, now.minute)
-
-    return later - now
+from master.Attributes import Attributes
+from master.TaskDate import TaskDate
+from master.util.parse_date import parse_date, parse_duration
+from master.util.NoCompare import NoCompare
 
 
 def parse_rrule(rrule):
@@ -82,7 +32,7 @@ def parse_rrule(rrule):
     Raises:
         ValueError if the rrule str wasn't valid.
     """
-    rrule =  'RRULE:' + rrule
+    rrule = 'RRULE:' + rrule
     s = '\n'.join(['BEGIN:VEVENT', rrule, 'END:VEVENT'])
     event = Event.from_ical(s)
 
@@ -90,47 +40,6 @@ def parse_rrule(rrule):
         raise ValueError('Invalid rrule')
 
     return event['rrule']
-
-
-class _TaskDate:
-    """ Special date class used by Task
-
-    Overloads comparison operators so task.*date* attributes will parse
-    the strings they get as dates for comparison. This allows tasks to
-    compare their *date* fields to strings like "last wednesday" correctly.
-    """
-    def __init__(self, date):
-        """ date needs to be parseable according to parse_date
-
-        Raises:
-            ValueError if the date could not be parsed.
-        """
-        self.date = parse_date(date)
-
-    def __str__(self):
-        days = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun']
-        d = self.date
-        weekday = days[d.weekday()]
-
-        return f'{d.year}-{d.month:02d}-{d.day:02d}, {weekday}'
-
-    def __lt__(self, o):
-        if type(o) is _TaskDate:
-            return self.date < o.date
-
-        return self.date < parse_date(o)
-
-    def __gt__(self, o):
-        if type(o) is _TaskDate:
-            return self.date > o.date
-
-        return self.date > parse_date(o)
-
-    def __eq__(self, o):
-        if type(o) is _TaskDate:
-            return self.date == o.date
-
-        return self.date == parse_date(o)
 
 
 class Task:
@@ -160,7 +69,7 @@ class Task:
                 keyword arguments. Tasks may have additional attributes.
 
         Raises:
-            ValueError if some attributes were invalid (see Task.check method).
+            ValueError if some attribute keys were invalid.
         """
         attributes = attributes or dict()
 
@@ -168,30 +77,9 @@ class Task:
         self.description = description
 
         # Process attributes
-        self.attributes = {}
+        self.attributes = Attributes()
         self.attributes.update(attributes)
         self.attributes.update(kwargs)
-
-        self.check()
-        self.refresh()
-
-    def refresh(self):
-        """ Make minor corrections to attribute values.
-
-        Sort and downcase the tags and try to parse dates.
-
-        Raises:
-            ValueError if a date could not be parsed. This will happen if
-                the value is a non-empty string that was not a parsable date.
-        """
-        if 'tags' in self.attributes:
-            tags = sorted(list(set([x.lower() for x in self.attributes['tags']])))
-            self.attributes['tags'] = tags
-
-        # Try to parse dates
-        for k, v in self.attributes.items():
-            if 'date' in k and v:
-                self.attributes[k] = _TaskDate(v)
 
     def asIcsEvent(self, uid):
         """ Return an icalendar.Event class from this Task's data.
@@ -225,57 +113,24 @@ class Task:
 
         event.add('dtstamp', parse_date('today'))
 
-        dtstart = None
         if 'start_date' in self and self.start_date:
-            dtstart = self.start_date.date
-            if 'start_time' in self and self.start_time:
-                s = f'{self.start_date} {self.start_time}'
-                dtstart = parse_date(s, parse_time=True)
+            event.add('dtstart', self.start_date.date)
         elif 'due_date' in self and self.due_date:
-            dtstart = self.due_date.date
-            if 'due_time' in self and self.due_time:
-                s = f'{self.due_date} {self.due_time}'
-                dtstart = parse_date(s, parse_time=True)
-
-        if dtstart:
-            event.add('dtstart', dtstart)
+            event.add('dtstart', self.due_date.date)
 
         # recurring tasks should also have start_date
         if 'recurring' in self and self.recurring:
             event['rrule'] = parse_rrule(self.recurring)
 
-        # Add duration. Should already be a timedelta
+        # Add duration.
         if 'duration' in self and self.duration:
             event.add('duration', parse_duration(self.duration))
 
         # Parse dtend
-        dtend = None
         if 'end_date' in self and self.end_date:
-            dtend = self.end_date.date
-            if 'end_time' in self and self.end_time:
-                s = f'{self.end_date} {self.end_time}'
-                dtend = parse_date(s, parse_time=True)
-        if dtend:
             event.add('dtend', self.end_date.date)
 
         return event
-
-    def check(self):
-        """ Check the validity of this task's attributes.
-
-        Will raise an exception if any keys aren't valid python3 identifiers.
-
-        Raises:
-            ValueError: If any keys weren't valid python3 identifiers.
-        """
-        invalid = []
-        for k in self.attributes:
-            if not k.isidentifier():
-                invalid.append(f'"{k}"')
-
-        if invalid:
-            invalid = ', '.join(invalid)
-            raise ValueError(f'The following key names are invalid: {invalid}')
 
     @classmethod
     def createFromRst(cls, rst):
@@ -299,10 +154,11 @@ class Task:
             -------------
             My other heading description
 
+            .. attributes
             creator: ciminobo
             assignee: ciminobo
             creation_date: 05/07/1993
-            ...
+            .. attributes
 
         Args:
             rst: RST-formatted text from which to create the task. This value
@@ -320,28 +176,13 @@ class Task:
             if len(rst) == 1:
                 with open(rst[0]) as f:
                     rst = f.read().strip().splitlines()
-
         if not rst:
             raise ValueError('The task was empty.')
 
-        attributes = {}
-
-        # Extract the attributes first. Some may be modified in special ways.
-        curline = rst[-1].strip()
-        while curline != '':
-            curline = curline.split(':')
-            key, value = curline[0], ':'.join(curline[1:]).strip()
-
-            # Store tags as a list
-            if key == 'tags':
-                value = value.replace(',', ' ').replace(':', ' ').split()
-                value = sorted(list(set(value)))
-            elif 'date' in key:  # Try to parse dates
-                value = _TaskDate(value)
-
-            attributes[key] = value
-            rst = rst[:-1]
-            curline = rst[-1].strip()
+        # Extract the attributes first. These are expected at the bottom.
+        idx = rst.index('.. attributes')
+        attributes = yaml.safe_load('\n'.join(rst[idx+1:-1]))
+        rst = rst[:idx]
 
         # Find the title.
         if re.search('^=+$', rst[0].strip()):
@@ -373,6 +214,7 @@ class Task:
         """
         self.title = new_task.title
         self.description = new_task.description
+        self.attributes = Attribtes()
         self.attributes.update(new_task.attributes)
 
     def getRst(self):
@@ -381,47 +223,38 @@ class Task:
         Returns:
             An RST string representing the content of this task.
         """
-        s = []
-        s.append('=' * (len(self.title) + 2))
-        s.append(' ' + self.title)
-        s.append(s[0])
-
-        s.append(self.description)
-        s.append('')
-
-        # Add the attributes alphabetically
-        for k in sorted(self.attributes.keys()):
-            v = self.attributes[k]
-            if k == 'tags':
-                v = ', '.join(v)
-
-            s.append(f'{k}: {v}')
-
-        # Will become trailing newline
-        s.append('')
+        thead = '=' * (len(self.title) + 2)
+        s = [
+            thead,
+            ' ' + self.title,
+            thead,
+            self.description,
+            '',
+            '.. attributes',
+            yaml.dump(self.attributes.toYamlDict()),
+            '.. attributes',
+            '',
+        ]
 
         return '\n'.join(s)
 
     def __eq__(self, o):
-        """ Returns true if o.id matches this one.
+        """ Returns true if o.title matches this one.
         """
-        return self.id == o.id
+        return self.title == o.title
 
     def __lt__(self, o):
-        """ Returns true if o.id is less than this one.
+        """ Returns true if o.title is less than this one.
         """
-        return self.id < o.id
+        return self.title < o.title
 
     def __getattr__(self, key):
         """ Expose keys in self.attributes as attributes.
         """
         if key in self.__dict__:
             return self.__dict__[key]
-        else:
-            try:
-                return self.attributes[key]
-            except KeyError as e:
-                raise AttributeError(f"'Task' object has no attribute {key}")
+
+        return self.attributes[key]
 
     def __contains__(self, key):
         """ Return True if key is in the Task's dict or attributes.

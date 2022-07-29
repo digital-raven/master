@@ -9,3 +9,6 @@ def add_init_subparser(subparsers):
 
     init_parser.add_argument(
         '--conf', help='Specify a custom config.', default='')
+
+    init_parser.add_argument(
+        '--force', help='Overwrite an existing project.', default=False, action='store_true')

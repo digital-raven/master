@@ -100,7 +100,7 @@ class Project:
             self.addTask(task, task.id)
 
     @classmethod
-    def initOnDisk(cls, path, creator, conf=''):
+    def initOnDisk(cls, path, creator, conf='', force=False):
         """ Init a new project on the disk.
 
         A project is initialized by creating a project.yaml file in the
@@ -121,6 +121,7 @@ class Project:
             creator: Username of the project's creator. Will have absolute
                 authority over this and any projects owned by this project.
             conf: Text or path of file to be used as the project's configuration.
+            force: Re-init over an existing project.yaml
 
         Returns:
             The newly initialized Project.
@@ -130,7 +131,7 @@ class Project:
             PermissionError: User lacks permissions to create a new project.
             ValueError: Invalid configuration.
         """
-        if os.path.exists(f'{path}/project.yaml'):
+        if os.path.exists(f'{path}/project.yaml') and not force:
             raise FileExistsError(f'Location {path} is already host to a project.')
 
         s = conf if conf else basic

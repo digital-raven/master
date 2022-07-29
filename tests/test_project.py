@@ -30,7 +30,7 @@ class TestProject(unittest.TestCase):
         self.assertEqual(dict(), p.projects)
         self.assertEqual(dict(), p.tasks)
 
-        exp_attr = {'creation_date': None, 'creator': None, 'id': None, 'project': None, 'stage': 'todo', 'tags': None}
+        exp_attr = {'creation_date': None, 'creator': None, 'due_date': None, 'id': None, 'project': None, 'stage': 'todo', 'tags': None}
 
         self.assertEqual(['tester'], p.settings['owners'])
         self.assertEqual(exp_attr, p.settings['default_attributes'])

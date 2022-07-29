@@ -13,7 +13,7 @@ Funniness
 
 
 assignee: 
-creation_date: 2022-04-19, Tues
+creation_date: 2022-04-19, Tue
 creator: shillenburg
 id: PROJ_24
 project: project

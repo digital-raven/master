@@ -1,3 +1,5 @@
+import yaml
+
 from master.TaskDate import TaskDate
 from master.util.NoCompare import NoCompare
 
@@ -12,6 +14,26 @@ class Attributes(dict):
     """
     def __init__(self, *args, **kwargs):
         self.update(*args, **kwargs)
+
+    @classmethod
+    def fromYaml(cls, s):
+        """
+
+        Args:
+            s: String or filename of yaml to init from.
+        Raises:
+            FileNotFoundError or PermissionError if yaml was a file and
+                couldn't be read.
+
+            Whatever yaml.safe_load raises.
+        """
+        d = yaml.safe_load(s)
+        if type(d) is str:
+            with open(s) as f:
+                s = f.read()
+            d = yaml.safe_load(s)
+
+        return Attributes(d)
 
     def toYamlDict(self):
         """ Reverses TaskDate to easymode yaml str.

@@ -85,11 +85,28 @@ class Project:
         Raises:
             ValueError if any of the tasks were invalid.
         """
+        tasks = tasks or []
+
         self.name = name
         self.path = path
-        self.projects = projects
+        self.projects = projects or []
         self.tasks = {}
         self.settings = Attributes(settings)
+
+        base_attrs = [
+            'creation_date',
+            'creator',
+            'id',
+            'project',
+            'tags',
+        ]
+
+        if 'default_attributes' not in self.settings:
+            self.settings['default_attributes'] = {}
+
+        for attr in base_attrs:
+            if attr not in self.settings.default_attributes:
+                self.settings.default_attributes[attr] = None
 
         # List of modified tasks.
         self.modified = {}

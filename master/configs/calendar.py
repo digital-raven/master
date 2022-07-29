@@ -1,10 +1,9 @@
-basic = """\
+calendar = """\
 ################################################################################
-# This is a configuration for projects with basic tasks. The settings
-# in this file will be copied to new projects as project.yaml
-#
-# Settings in this string that begin with a double underscore are automatically
-# replaced when the real project configuration is created.
+# This configuration is for schedule-oriented events. Use the start_date and
+# duration fields to indicate the start times and durations of events for
+# ICS calendar event exporting, and end_date to pair with recurring if a
+# recurring event should stop on a given date.
 #
 
 ################################################################################
@@ -15,8 +14,7 @@ owners:
   - __DEFAULT_OWNER
 
 ################################################################################
-# Name of the project. Will be named after the basename of the
-# containing folder by default.
+# This project be named after the basename of the containing folder by default.
 #
 project_name: __DEFAULT_PROJECT_NAME
 
@@ -25,13 +23,23 @@ project_name: __DEFAULT_PROJECT_NAME
 # task will always have a creation_date, creator, id, project, and tags
 # regardless of the defaults listed here.
 #
-# A basic task only adds on a due_date and stage. The only stage value reserved
-# by master is "closed". "closed" tasks are omitted from master filters by
-# default. Feel free to use any other values for your own task progressions.
+# Calendar events have a start_date, duration, reccuring, and end_date
+# behavior (daily, weekly...). Any tasks (not just ones under a project created
+# with this template) that have a "start_date" or "due_date" may be exported
+# as ICS events.
+#
+# start_date and end_date may be provided as human-readable datetime strings
+# like "next week", or "next thursday 4pm"
+#
+# duration may be provided as hours and minutes. eg. "4h 30m".
+#
+# The recurring field needs to follow the ICS recurrance rules.
 #
 default_attributes:
-  due_date:
-  stage: todo
+  end_date: 
+  duration:
+  recurring:
+  start_date:
 
 ################################################################################
 # Used to prefix the IDs of tasks created within the project.

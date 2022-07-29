@@ -1,4 +1,4 @@
-basic = """\
+note = """\
 ################################################################################
 # This is a configuration for projects with basic tasks. The settings
 # in this file will be copied to new projects as project.yaml
@@ -30,8 +30,6 @@ project_name: __DEFAULT_PROJECT_NAME
 # default. Feel free to use any other values for your own task progressions.
 #
 default_attributes:
-  due_date:
-  stage: todo
 
 ################################################################################
 # Used to prefix the IDs of tasks created within the project.

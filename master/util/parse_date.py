@@ -1,7 +1,6 @@
 from datetime import date, datetime, timedelta
 
 import parsedatetime as pdt
-from parsedatetime import VERSION_FLAG_STYLE
 
 
 def parse_date(date_, _cache={}):
@@ -55,7 +54,7 @@ def parse_date(date_, _cache={}):
         pass
 
     # Didn't match any clean format. Time for the parser.
-    cal = pdt.Calendar(version=VERSION_FLAG_STYLE)
+    cal = pdt.Calendar()
     d, flag = cal.parse(date_)
 
     if not flag:

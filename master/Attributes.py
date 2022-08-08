@@ -48,7 +48,7 @@ class Attributes(dict):
         d = dict()
         d.update(self)
         for k, v in d.items():
-            if 'date' in k:
+            if 'date' in k and v:
                 d[k] = str(v)
 
         return d

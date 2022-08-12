@@ -47,8 +47,10 @@ class Attributes(dict):
         """
         d = dict()
         d.update(self)
+        dtfields = ['event_begin', 'event_end', 'recurring_stop']
+
         for k, v in d.items():
-            if 'date' in k and v:
+            if v and (k in dtfields or 'date' in k):
                 d[k] = str(v)
 
         return d
@@ -73,12 +75,15 @@ class Attributes(dict):
         Will also perform special parsing logic for keys that contain
         the word "date".
         """
-        if not key.isidentifier():
-            raise ValueError(f'The key "{key}" is not a valid identifier.')
+        try:
+            if not key.isidentifier():
+                raise ValueError(f'The key "{key}" is not a valid identifier.')
+        except AttributeError as ae:
+            raise ValueError('Keys must be strings')
 
-        if type(key) is str and val:
-            if 'date' in key:
-                val = TaskDate(val)
+        dtfields = ['event_begin', 'event_end', 'recurring_stop']
+        if val and (key in dtfields or 'date' in key):
+            val = TaskDate(val)
 
         dict.__setitem__(self, key, val)
 

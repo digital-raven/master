@@ -1,9 +1,8 @@
 calendar = """\
 ################################################################################
-# This configuration is for schedule-oriented events. Use the start_date and
-# duration fields to indicate the start times and durations of events for
-# ICS calendar event exporting, and end_date to pair with recurring if a
-# recurring event should stop on a given date.
+# This configuration is for schedule-oriented events. Use the event_begin and
+# duration / event_end fields to indicate the start times and durations of
+# events for ICS calendar event exporting.
 #
 
 ################################################################################
@@ -23,23 +22,26 @@ project_name: __DEFAULT_PROJECT_NAME
 # task will always have a creation_date, creator, id, project, and tags
 # regardless of the defaults listed here.
 #
-# Calendar events have a start_date, duration, reccuring, and end_date
+# Calendar events have a event_begin, duration, reccuring, and event_end
 # behavior (daily, weekly...). Any tasks (not just ones under a project created
-# with this template) that have a "start_date" or "due_date" may be exported
+# with this template) that have a "event_begin" or "due_date" may be exported
 # as ICS events.
 #
-# start_date and end_date may be provided as human-readable datetime strings
+# event_begin and event_end may be provided as human-readable datetime strings
 # like "next week", or "next thursday 4pm"
 #
 # duration may be provided as hours and minutes. eg. "4h 30m".
 #
-# The recurring field needs to follow the ICS recurrance rules.
+# The recurring field follows ICS calendar rrule convention. As a bit of
+# convenience, you may use a human-readable datetime to signify the end of
+# the recurrance in the recurring_stop field.
 #
 default_attributes:
-  end_date: 
+  event_begin:
+  event_end:
   duration:
   recurring:
-  start_date:
+  recurring_stop:
 
 ################################################################################
 # Used to prefix the IDs of tasks created within the project.

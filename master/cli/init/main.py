@@ -54,7 +54,7 @@ def do_init(args):
             with open(bkp, 'w') as f:
                 f.write(conf)
             print(f'Backup config saved to {bkp}')
-        except:
-            print(f'No config backup could be saved.')
+        except Exception as e:
+            print(f'No config backup could be saved: {e}.')
 
         sys.exit(1)

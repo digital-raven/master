@@ -18,6 +18,11 @@ class TaskDate:
         """
         self.date = parse_date(date_)
 
+    def asRrule(self):
+        """ Return rrule compatible string for "until" field
+        """
+        return self.date.strftime('%Y%m%dT%H%M%S%Z')
+
     def __str__(self):
         days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         d = self.date
@@ -70,9 +75,15 @@ class TaskDate:
         return s <= o
 
     def __eq__(self, o):
+        if o is None:
+            return False
+
         s, o = self._compato(o)
         return s == o
 
     def __ne__(self, o):
+        if o is None:
+            return True
+
         s, o = self._compato(o)
         return s != o

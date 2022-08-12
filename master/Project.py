@@ -97,11 +97,14 @@ class Project:
             'creation_date',
             'creator',
             'id',
+            'links',
             'project',
             'tags',
         ]
 
         if 'default_attributes' not in self.settings:
+            self.settings['default_attributes'] = {}
+        elif not self.settings.default_attributes:
             self.settings['default_attributes'] = {}
 
         for attr in base_attrs:
@@ -349,6 +352,11 @@ class Project:
             t.attributes['id'] = exp_id
             corrected = True
 
+        # Each task should have links to other tasks
+        if 'links' not in t.attributes or t.links is None:
+            t.attributes['links'] = {}
+            corrected = True
+
         # The task always belongs to this project.
         if 'project' not in t.attributes or t.project != self.name:
             t.attributes['project'] = self.name
@@ -445,8 +453,6 @@ class Project:
         cur_id = int(task.id.split('_')[-1])
         self.max_id = max(self.max_id, cur_id)
 
-        self.dump()
-
     def addProject(self, name, creator, conf=''):
         """ Add a new project under this project.
 
@@ -471,7 +477,7 @@ class Project:
         self.projects[name] = p
         return p
 
-    def dump(self):
+    def flush(self):
         """ Write changes to this project back to disk.
         """
         for id_, task in self.modified.items():

@@ -7,7 +7,7 @@ def do_list(args):
     if args.filter:
         args.filter += ' and'
     if 'closed' not in args.filter:
-        args.filter += ' t.stage != "closed"'
+        args.filter += ' not t.stage == "closed"'
     else:
         args.filter += ' True'
 

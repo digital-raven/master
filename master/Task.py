@@ -84,7 +84,7 @@ class Task:
     def asIcsEvent(self, uid):
         """ Return an icalendar.Event class from this Task's data.
 
-        A task must have either a start_date or a due_date to be
+        A task must have either a event_begin or a due_date to be
         considered capable of turning into an ICS Event.
 
         This function does not support all ICS Event values. The
@@ -93,16 +93,16 @@ class Task:
         - dtstamp: Initialized to the time this method was called.
         - summary
         - description
-        - dtstart: as start_date or due_date with respective *_time's
-        - dtend: as end_date + end_time (optional)
+        - dtstart: as event_begin or due_date with respective *_time's
+        - dtend: as event_end + end_time (optional)
         - rrule: as recurring
 
         Returns:
             An icalendar.Event created from this instance's data. If
-            this task doesn't have a due_date or start_date field then
+            this task doesn't have a due_date or event_begin field then
             None will be returned.
         """
-        exp = ['start_date', 'due_date']
+        exp = ['event_begin', 'due_date']
         if not any([x in self.attributes and self.attributes[x] for x in exp]):
             return None
 
@@ -113,22 +113,27 @@ class Task:
 
         event.add('dtstamp', parse_date('today'))
 
-        if 'start_date' in self and self.start_date:
-            event.add('dtstart', self.start_date.date)
+        if 'event_begin' in self and self.event_begin:
+            event.add('dtstart', self.event_begin.date)
         elif 'due_date' in self and self.due_date:
             event.add('dtstart', self.due_date.date)
 
-        # recurring tasks should also have start_date
+        # recurring tasks should also have event_begin
         if 'recurring' in self and self.recurring:
-            event['rrule'] = parse_rrule(self.recurring)
+            rrule = self.recurring
+
+            if 'recurring_stop' in self and self.recurring_stop:
+                rrule += f';until={self.recurring_stop.asRrule()}'
+
+            event['rrule'] = parse_rrule(rrule)
 
         # Add duration.
         if 'duration' in self and self.duration:
             event.add('duration', parse_duration(self.duration))
 
         # Parse dtend
-        if 'end_date' in self and self.end_date:
-            event.add('dtend', self.end_date.date)
+        if 'event_end' in self and self.event_end:
+            event.add('dtend', self.event_end.date)
 
         return event
 

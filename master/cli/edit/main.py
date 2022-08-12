@@ -16,3 +16,4 @@ def do_edit(args):
 
     task = eval(f'p.{args.task}')
     p.updateTask(task, editor='vim')
+    p.flush()

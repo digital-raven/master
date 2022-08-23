@@ -1,9 +1,10 @@
 import os
 import sys
 from importlib import import_module
+from pathlib import Path
 
 from master.Attributes import Attributes
-from master.Project import Project
+from master.Project import Project, readdir_
 from master.util.edit import edit
 
 
@@ -58,3 +59,8 @@ def do_init(args):
             print(f'No config backup could be saved: {e}.')
 
         sys.exit(1)
+
+    # Create .master-root file if there is no project.yaml file above us.
+    _, _, f = readdir_(f'{args.path}/../')
+    if 'project.yaml' not in f:
+        Path(f'{args.path}/.master-root').touch()

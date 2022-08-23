@@ -14,6 +14,11 @@ from master.config import add_config_args, do_first_time_setup, user_conf
 def main():
     parser = create_parser()
     argcomplete.autocomplete(parser)
+
+    # Default daily command should be add
+    if sys.argv[-1] == 'daily':
+        sys.argv.append('add')
+
     args = parser.parse_args()
 
     if not os.path.exists(user_conf) or args.setup:

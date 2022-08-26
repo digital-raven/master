@@ -119,6 +119,9 @@ class Project:
         for task in tasks:
             self.addTask(task, task.id)
 
+        # Hold tasks to be deleted by flush
+        self.deletions = {}
+
     @classmethod
     def initOnDisk(cls, path, creator, conf='', force=False):
         """ Init a new project on the disk.
@@ -198,7 +201,7 @@ class Project:
         return Project.loadFromDisk(path)
 
     @classmethod
-    def loadFromDisk(cls, path):
+    def loadFromDisk(cls, path, recursive=True):
         """ Load a project from disk.
 
         Projects will be recursively loaded from a path on the
@@ -207,6 +210,7 @@ class Project:
 
         Args:
             path: Dir where projects are located.
+            recurisve: Recursively load projects.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
@@ -240,13 +244,14 @@ class Project:
         # Load projects.
         projects = {}
         invalid_projects = []
-        for proj in [f'{r}/{x}' for x in d]:
-            try:
-                p = Project.loadFromDisk(proj)
-                if p:
-                    projects[p.name] = p
-            except ValueError as ve:
-                invalid_projects.append(str(ve))
+        if recursive:
+            for proj in [f'{r}/{x}' for x in d]:
+                try:
+                    p = Project.loadFromDisk(proj)
+                    if p:
+                        projects[p.name] = p
+                except ValueError as ve:
+                    invalid_projects.append(str(ve))
 
         if invalid_tasks or invalid_projects:
             raise ValueError('\n'.join(invalid_tasks + invalid_projects))
@@ -314,6 +319,20 @@ class Project:
         self.tasks[task.id] = task
         cur_id = int(task.id.split('_')[-1])
         self.max_id = max(self.max_id, cur_id)
+
+    def removeTask(self, task):
+        """ Remove a task.
+
+        This task will be deleted from disk on the next flush.
+
+        Args:
+            task: The ID of the task to delete.
+
+        Raises:
+            KeyError if no matching task was in this project.
+        """
+        self.deletions[task] = self.tasks[task]
+        del self.tasks[task]
 
     def _correctTask(self, t, exp_id, creation_date='', creator=''):
         """ Correct a task's metadata.
@@ -485,6 +504,11 @@ class Project:
                 f.write(task.getRst())
 
         self.modified = {}
+
+        for task in self.deletions:
+            os.remove(f'{self.path}/{task}.rst')
+
+        self.deletions = {}
 
     def filteredTasks(self, filter='', root=''):
         """ Generator for iterating over filtered tasks.

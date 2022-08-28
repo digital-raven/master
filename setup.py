@@ -19,9 +19,9 @@ install_requires = []
 if 'DEBBUILD' not in os.environ:
     install_requires = [
         'argcomplete >= 1.0',
-        'daily == 0.3.0',
+        'daily == 0.3.1',
         'icalendar',
-        'parsedatetime < 2.0',
+        'parsedatetime == 2.5',
         'recurring-ical-events',
         'pyyaml',
     ]

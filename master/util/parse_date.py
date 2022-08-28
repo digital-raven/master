@@ -54,7 +54,7 @@ def parse_date(date_, _cache={}):
         pass
 
     # Didn't match any clean format. Time for the parser.
-    cal = pdt.Calendar()
+    cal = pdt.Calendar(version=pdt.VERSION_FLAG_STYLE)
     d, flag = cal.parse(date_)
 
     if not flag:

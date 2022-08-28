@@ -299,7 +299,7 @@ class Project:
         except ValueError as ve:
             raise ValueError(f'{rst}: {ve}')
 
-    def addTask(self, task, exp_id=''):
+    def addTask(self, task, exp_id='', exp_creation_date=''):
         """ Add a new task to this project.
 
         The task will be corrected.
@@ -312,7 +312,7 @@ class Project:
             ValueError if the task was invalid and could not
             be corrected.
         """
-        corrected = self._correctTask(task, exp_id)
+        corrected = self._correctTask(task, exp_id, exp_creation_date)
         if corrected:
             self.modified[task.id] = task
 
@@ -334,7 +334,7 @@ class Project:
         self.deletions[task] = self.tasks[task]
         del self.tasks[task]
 
-    def _correctTask(self, t, exp_id, creation_date='', creator=''):
+    def _correctTask(self, t, exp_id, exp_creation_date='', creator=''):
         """ Correct a task's metadata.
 
         Args:
@@ -357,8 +357,8 @@ class Project:
             corrected = True
 
         # Ensure the creation_date isn't modified.
-        if creation_date and t.creation_date != creation_date:
-            t.creation_date = creation_date
+        if exp_creation_date and t.creation_date != exp_creation_date:
+            t.creation_date = exp_creation_date
             corrected = True
 
         # Ensure each task has a creator field.
@@ -388,7 +388,8 @@ class Project:
 
         # The ID should prefix the title
         if not t.title.startswith(t.id):
-            t.title = f'{t.id}: {t.title}'
+            title = t.title.split(':', maxsplit=1)[-1].strip()
+            t.title = f'{t.id}: {title}'
             corrected = True
 
         # Ensure the task has all expected default attributes.
@@ -424,7 +425,7 @@ class Project:
         attrs.update(self.settings['default_attributes'])
 
         attrs['creator'] = creator
-        attrs['creation_date'] = 'today'
+        attrs['creation_date'] = 'now'
         attrs['id'] = self.settings['task_prefix'] + '_' + str(self.max_id + 1)
 
         task = Task(title, description, attrs)

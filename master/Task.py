@@ -1,3 +1,4 @@
+import os
 import re
 import yaml
 
@@ -179,6 +180,9 @@ class Task:
         if type(rst) is str:
             rst = rst.strip().splitlines()
             if len(rst) == 1:
+                if not os.path.exists(rst[0]) and not rst[0].endswith('.rst'):
+                    rst[0] += '.rst'
+
                 with open(rst[0]) as f:
                     rst = f.read().strip().splitlines()
         if not rst:

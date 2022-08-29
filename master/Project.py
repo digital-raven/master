@@ -307,6 +307,7 @@ class Project:
         Args:
             task: Task reference to add.
             exp_id: Expected ID for the task to have.
+            exp_creation_date: Expected creation date for the task.
 
         Raises:
             ValueError if the task was invalid and could not
@@ -400,7 +401,9 @@ class Project:
 
         return corrected
 
-    def createTask(self, creator, title='', description='', attrs=None, editor=''):
+    def createTask(self,
+        creator, title='', description='', attrs=None,
+        creation_date='now', editor=''):
         """ Create a new task for this project.
 
         The task will also be written to disk.
@@ -412,6 +415,8 @@ class Project:
             description: Optional description of the new task.
             attrs: Additional desired attrs of the task. creator,
                 creation_date, id, and the project name cannot be overridden.
+            creation_date: Force a particular creation date. Useful if using
+                this function to move a task from one project to another one.
 
         Returns:
             A reference to the newly created task.
@@ -425,7 +430,7 @@ class Project:
         attrs.update(self.settings['default_attributes'])
 
         attrs['creator'] = creator
-        attrs['creation_date'] = 'now'
+        attrs['creation_date'] = creation_date
         attrs['id'] = self.settings['task_prefix'] + '_' + str(self.max_id + 1)
 
         task = Task(title, description, attrs)

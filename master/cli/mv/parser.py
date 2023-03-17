@@ -1,10 +1,10 @@
 def add_mv_subparser(subparsers):
 
     parser = subparsers.add_parser(
-        'mv', help='Move tasks to a new project.',
-        description='Any incorrect metadata will be corrected.')
+        'mv', help='Move zettels.',
+        description='Move zettels.')
 
     parser.add_argument(
-        'tasks', metavar='task', help='Tasks to remove.', nargs='+')
+        'zettels', metavar='zettel', help='Zettels to move.', nargs='+')
 
-    parser.add_argument('dest', help='Destination project.')
+    parser.add_argument('dest', help='Destination.')

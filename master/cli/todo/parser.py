@@ -5,8 +5,8 @@ def add_todo_subparser(subparsers):
         description='Print what you should do today.')
 
     parser.add_argument(
-        'project', help='Only account for tasks at or below this project.',
-        default='.', nargs='?')
+        'zettels', metavar='zettel', default='.', nargs='*',
+        help='Paths (dirs or files) to zettels.')
 
     parser.add_argument(
         '-d', '--date', help='Print what should be done for a given date.',

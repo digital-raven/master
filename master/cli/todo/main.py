@@ -1,12 +1,11 @@
 import sys
 from datetime import datetime, date
 
+from superdate import parse_date
+from libzet import load_zettels
+
 import recurring_ical_events
 from icalendar import Calendar
-
-from master.Project import Project
-from master.TaskDate import TaskDate
-from master.util.parse_date import parse_date
 
 
 def _trim(s):
@@ -53,7 +52,7 @@ def pretty_output(cal, target_date):
     ret = []
     if general or specific:
         ret.append('')
-        ret.append('Reminders\n---------')
+        ret.append('Todo\n----')
 
     if general:
         for e in general:
@@ -112,33 +111,33 @@ def print_remind(cal, target_date):
         print(f'{s} {_trim(e["UID"])}')
 
 
-def print_active(project, date_):
+def print_active(zettels, date_):
     """ Print events that are still active.
 
     These are recurring events that are still in circulation or accute
     evnets that haven't happened yet.
     """
-    filter_ = (
-        f't.event_begin != None and t.event_begin >= "{date_}" '
-        f'or t.event_end != None and t.event_end >= "{date_}" '
-        f'or t.due_date != None and t.due_date >= "{date_}" '
-        f'or t.recurring_stop == None and t.recurring != None '
-        f'or t.recurring_stop != None and t.recurring_stop >= "{date_}" ')
+    def filter_(t):
+        return (t.attrs["event_begin"] != None and t.attrs["event_begin"] >= date_
+            or t.attrs["event_end"] != None and t.attrs["event_end"] >= date_
+            or t.attrs["due_date"] != None and t.attrs["due_date"] >= date_
+            or t.attrs["recurring_stop"] == None and t.attrs["recurring"] != None
+            or t.attrs["recurring_stop"] != None and t.attrs["recurring_stop"] >= date_)
 
     active = []
-    for p, root, tasks in project.filteredTasks(filter_, project.path):
-        active.extend([f'- {_trim(f"{root}/{t.title}")}' for t in tasks])
+    for z in filter(filter_, zettels):
+        line = _trim(f'{z.attrs["_loadpath"]}: {z.title}')
+        active.append(f'- {line}')
 
     print('\n'.join(active))
 
 
-def extract_calendar(project, target_date):
-    """ Extract an icalendar Calendar from a project.
+def extract_calendar(zettels, target_date):
+    """ Get an icalendar Calendar from a list oz zettels.
     """
     cal = Calendar()
-    for p, root, tasks in project.filteredTasks('', project.path):
-        events = [t.asIcsEvent(f'{root}/{t.title}') for t in tasks]
-        [cal.add_component(e) for e in events if e]
+    events = [t.asIcsEvent(t.title) for t in zettels]
+    [cal.add_component(e) for e in events if e]
 
     return cal
 
@@ -146,20 +145,11 @@ def extract_calendar(project, target_date):
 def do_todo(args):
     """ Look at tasks within a project and print things you should do.
     """
-    try:
-        project = Project.loadFromDisk(args.project)
-    except ValueError as ve:
-        print(f'ERROR: {ve}')
-        sys.exit(1)
-
-    if project is None:
-        print(f'ERROR: "{args.project}" does not host a project.')
-        sys.exit(1)
-
-    cal = extract_calendar(project, args.date)
+    zettels = load_zettels(args.zettels, recurse=True)
+    cal = extract_calendar(zettels, args.date)
     if args.remind:
         print_remind(cal, args.date)
     elif args.list_active:
-        print_active(project, args.date)
+        print_active(zettels, args.date)
     else:
         print(pretty_output(cal, args.date))

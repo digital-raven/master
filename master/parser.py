@@ -25,9 +25,7 @@ def create_parser():
     """
     parser = argparse.ArgumentParser(
         prog='master',
-        description=(
-            'A command-line project manager. Run "master" with no '
-            'arguments to perform first-time setup.'))
+        description=('A command-line knowledge base manager.'))
 
     parser.add_argument(
         '--setup', help='Redo the first-time setup.', action='store_true')

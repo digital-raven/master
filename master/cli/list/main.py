@@ -1,18 +1,14 @@
-from master.Project import Project
+from libzet import load_zettels
+
+
+def _filter_zettels(zettels, filter):
+    return [z for z in zettels if eval(filter)]
 
 
 def do_list(args):
-    p = Project.loadFromDisk(args.project)
 
-    if args.filter:
-        args.filter += ' and'
-    if 'closed' not in args.filter:
-        args.filter += ' not t.stage == "closed"'
-    else:
-        args.filter += ' True'
+    zettels = load_zettels(args.zettels)
 
-    s = []
-    for p, root, tasks in p.filteredTasks(args.filter, args.project):
-        s.extend([f'{root}/{t.title}' for t in tasks])
-
-    print('\n'.join(s).strip())
+    filtered = _filter_zettels(zettels, args.filter)
+    filtered = sorted([f'{z.attrs["_loadpath"]}: {z.title}' for z in filtered])
+    print('\n'.join(filtered))

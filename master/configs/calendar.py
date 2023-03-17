@@ -1,21 +1,14 @@
 calendar = """\
 ################################################################################
-# This configuration is for schedule-oriented events. Use the event_begin and
-# duration / event_end fields to indicate the start times and durations of
-# events for ICS calendar event exporting.
+# This configuration is for schedule-oriented events. Tasks created here are
+# designed to be exported as generic ICS events; usable with other calendars.
 #
 
-################################################################################
-# List of users who have ultimate access to this project and every
-# project below this level.
-#
-owners:
-  - __DEFAULT_OWNER
+# Default zettel format: md or rst
+zettel_format: md
 
-################################################################################
-# This project be named after the basename of the containing folder by default.
-#
-project_name: __DEFAULT_PROJECT_NAME
+# Default headings for new tasks
+headings: []
 
 ################################################################################
 # Attributes that each new task under this project will have by default. Each
@@ -36,20 +29,16 @@ project_name: __DEFAULT_PROJECT_NAME
 # convenience, you may use a human-readable datetime to signify the end of
 # the recurrance in the recurring_stop field.
 #
-default_attributes:
+attrs:
   event_begin:
   event_end:
   duration:
+  project_name: __DEFAULT_PROJECT_NAME
   recurring:
   recurring_stop:
 
 ################################################################################
-# Used to prefix the IDs of tasks created within the project.
-#
-# This will default to the first few characters of the project's name.
-#
-# If task_prefix is '__date' then new tasks will have their prefixs (and thus
-# their filenames and IDs) be interpreted as a date or datetime.
+# Prefix the titles of newly created tasks.
 #
 task_prefix: __DEFAULT_PREFIX
 """

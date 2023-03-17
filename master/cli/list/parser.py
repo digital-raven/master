@@ -5,7 +5,7 @@ def add_list_subparser(subparsers):
         description='List the title of tasks according to a filter.')
 
     parser.add_argument(
-        '-f', '--filter', help='Specify a list filter.', default='')
+        '-f', '--filter', help='Specify a list filter.', default='True')
 
     parser.add_argument(
-        'project', help='Target a specific project.', default='.', nargs='?')
+        'zettels', help='Files and directories to filter.', default='.', nargs='*')

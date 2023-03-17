@@ -2,69 +2,17 @@
 """
 import os
 import re
-import tempfile
-from subprocess import call
+from glob import glob
 
+from libzet import Attributes, create_zettel, load_zettels
 import yaml
 
-from master.Attributes import Attributes
-from master.configs.basic import basic
-from master.Task import Task
-
-
-def readdir_(d):
-    """ Same as os.walk executed at the first level.
-
-    Returns:
-        A 3-tuple. First entry is the root (d), second is a list of all
-        directory entries within d, and the third is a list of names of
-        regular files.
-    """
-    d = d.rstrip(os.path.sep)
-    if not os.path.isdir(d):
-        raise ValueError('"{}" is not a directory.'.format(d))
-
-    for root, dirs, files in os.walk(d):
-        return root, dirs, files
-
-
-def editTask(task, editor):
-    """ Open task in editor with a tmp file.
-
-    This function does not return a task; it returns the task's RST. Check
-    the validity of this output like this...
-
-        # ... init some Task t
-        # ...
-        try:
-            rst = editTask(t, 'vim')
-            t = Task.createFromRst(rst)
-        except ValueError:
-            # handle the exception.
-
-    Returns:
-        The text from the tmp file.
-    """
-    _, path = tempfile.mkstemp(suffix='.rst')
-
-    try:
-        with open(path, 'w') as f:
-            f.write(task.getRst())
-
-        call([editor, path])
-
-        with open(path, 'r') as f:
-            text = f.read()
-
-    finally:
-        os.remove(path)
-
-    return text
+from master.configs.note import note
 
 
 class Project:
 
-    def __init__(self, name, path, projects, tasks, settings):
+    def __init__(self, settings, tasks):
         """ Init a new Project.
 
         Projects have sub-projects, tasks, and settings loaded from a config.
@@ -78,8 +26,6 @@ class Project:
 
         Args:
             name: Name of the project.
-            path: Path of the project on disk.
-            projects: Dictionary of other projects under this one.
             tasks: List of tasks to add.
 
         Raises:
@@ -87,64 +33,23 @@ class Project:
         """
         tasks = tasks or []
 
-        self.name = name
-        self.path = path
-        self.projects = projects or []
-        self.tasks = {}
+        self.tasks = tasks
         self.settings = Attributes(settings)
 
-        base_attrs = [
-            'creation_date',
-            'creator',
-            'id',
-            'links',
-            'project',
-            'tags',
-        ]
-
-        if 'default_attributes' not in self.settings:
-            self.settings['default_attributes'] = {}
-        elif not self.settings.default_attributes:
-            self.settings['default_attributes'] = {}
-
-        for attr in base_attrs:
-            if attr not in self.settings.default_attributes:
-                self.settings.default_attributes[attr] = None
-
-        # List of modified tasks.
-        self.modified = {}
-        self.max_id = 0
-
-        # Add the tasks to this project
-        for task in tasks:
-            self.addTask(task, task.id)
-
-        # Hold tasks to be deleted by flush
-        self.deletions = {}
+        if 'zettel_format' not in self.settings:
+            self.settings['zettel_format'] = 'md'
 
     @classmethod
-    def initOnDisk(cls, path, creator, conf='', force=False):
+    def initOnDisk(cls, path, template='', force=False):
         """ Init a new project on the disk.
 
-        A project is initialized by creating a project.yaml file in the
-        directory. No sub-projects or tasks will be created. Pre-existing
-        files will not be modified, but this function is designed to be called
-        on a non-existent or empty directory.
-
-        The default, barebones settings that will be created by default are...
-
-            owners = creator
-            project_name = <basename of path>
-            task_prefix = <ALL CAPS of project_name> or..
-                <ALL CAPS OF FIRST LETTER OF EACH WORD IN PROJECT NAME> if
-                project has multiple words in its name.
+        A project is initialized by creating a ztemplate.yaml file in the
+        directory.
 
         Args:
             path: Dir where to init the project.
-            creator: Username of the project's creator. Will have absolute
-                authority over this and any projects owned by this project.
-            conf: Text or path of file to be used as the project's configuration.
-            force: Re-init over an existing project.yaml
+            template: Yaml string or dir to be used as the template.
+            force: Re-init over an existing ztemplate.yaml
 
         Returns:
             The newly initialized Project.
@@ -152,18 +57,15 @@ class Project:
         Raises:
             FileExistsError: A project already exists at the specified path.
             PermissionError: User lacks permissions to create a new project.
-            ValueError: Invalid configuration.
+            ValueError: Invalid template.
         """
-        if os.path.exists(f'{path}/project.yaml') and not force:
+        if os.path.exists(f'{path}/ztemplate.yaml') and not force:
             raise FileExistsError(f'Location {path} is already host to a project.')
 
-        s = conf if conf else basic
+        s = template if template else note
         if len(s.splitlines()) == 1:
-            with open(conf) as f:
+            with open() as f:
                 s = f.read()
-
-        # Default the owner of the project to its creator.
-        s = s.replace('__DEFAULT_OWNER', creator)
 
         # Set the name of the project to the containing directory.
         if '__DEFAULT_PROJECT_NAME' in s:
@@ -172,6 +74,7 @@ class Project:
             s = s.replace('__DEFAULT_PROJECT_NAME', project_name)
 
         # Determine the task prefix
+        # CAPS word if single word. Else abbreviation.
         if '__DEFAULT_PREFIX' in s:
             prefix = project_name.replace('-', '_').split('_')
             if len(prefix) == 1:
@@ -181,11 +84,11 @@ class Project:
 
             s = s.replace('__DEFAULT_PREFIX', f'{prefix}')
 
-        # Make sure the conf is valid yaml
+        # Make sure the template is valid yaml
         try:
             y = yaml.safe_load(s)
             if type(y) is str:
-                raise ValueError('The provided config for this project was not valid yaml.')
+                raise ValueError('The template file was not valid yaml.')
         except yaml.scanner.ScannerError as e:
             raise ValueError(e)
 
@@ -194,14 +97,14 @@ class Project:
         except FileExistsError:
             pass
 
-        with open(f'{path}/project.yaml', 'w') as f:
+        with open(f'{path}/ztemplate.yaml', 'w') as f:
             f.write(s)
 
         # Create the project by loading it back
         return Project.loadFromDisk(path)
 
     @classmethod
-    def loadFromDisk(cls, path, recursive=True):
+    def loadFromDisk(cls, path):
         """ Load a project from disk.
 
         Projects will be recursively loaded from a path on the
@@ -209,214 +112,33 @@ class Project:
         file will be considered as a project.
 
         Args:
-            path: Dir where projects are located.
-            recurisve: Recursively load projects.
+            path: Dir where project is located.
 
         Returns: A new Project instance. None if the path didn't
             contain a project config.
         """
-        r, d, f = readdir_(path)
-
+        path = path or '.'
         try:
-            with open(f'{r}/project.yaml') as fp:
-                settings = yaml.safe_load(fp.read())
-        except (FileNotFoundError, PermissionError):
-            return None
+            settings = Attributes.fromYaml(f'{path}/ztemplate.yaml')
+        except OSError:
+            settings = {}
+
+        p = Project(settings, None)
 
         # Init the project with current settings.
-        project = Project(settings['project_name'], r, {}, {}, settings)
+        fmt = p.settings['zettel_format']
+        p.tasks = load_zettels(path, zettel_format=fmt)
 
-        # Load tasks.
-        prefix = project.settings['task_prefix']
-        pattern = ''
-        if prefix == '__date':
-            pattern = r'^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\.*.rst$'
-        else:
-            pattern = f'^{prefix}_[0-9]+.rst$'
+        return p
 
-        invalid_tasks = ''
-        taskfiles = [f'{r}/{x}' for x in f if re.search(pattern, x)]
-        try:
-            project.loadTasks(taskfiles)
-        except ValueError as ve:
-            invalid_tasks = f'The project {r} has invalid tasks.\n' + str(ve) + '\n'
-
-        # Load projects.
-        projects = {}
-        invalid_projects = []
-        if recursive:
-            for proj in [f'{r}/{x}' for x in d]:
-                try:
-                    p = Project.loadFromDisk(proj)
-                    if p:
-                        projects[p.name] = p
-                except ValueError as ve:
-                    invalid_projects.append(str(ve))
-
-        if invalid_tasks or invalid_projects:
-            raise ValueError('\n'.join(invalid_tasks + invalid_projects))
-
-        project.projects = projects
-
-        return project
-
-    def loadTasks(self, tasks):
-        """ Load tasks into this project from disk.
-
-        Args:
-            tasks: A list of files to load from.
-
-        Raises:
-            ValueError if any of the tasks were invalid. Valid
-            tasks will still be loaded.
-        """
-        errors = []
-        new_tasks = []
-        for task in tasks:
-            try:
-                self.loadTask(task)
-            except ValueError as ve:
-                errors.append(f'{t}: {ve}')
-
-        if errors:
-            raise ValueError('\n'.join(errors))
-
-    def loadTask(self, task):
-        """ Load a task from a file.
-
-        The task will be corrected as it's read in.
-
-        Args:
-            task: Filepath to load task from.
-
-        Raises:
-            ValueError if the task was invalid.
-        """
-        exp_id = os.path.basename(task).split('.')[0]
-        try:
-            t = Task.createFromRst(task)
-            self.addTask(t, exp_id)
-        except ValueError as ve:
-            raise ValueError(f'{rst}: {ve}')
-
-    def addTask(self, task, exp_id='', exp_creation_date=''):
-        """ Add a new task to this project.
-
-        The task will be corrected.
-
-        Args:
-            task: Task reference to add.
-            exp_id: Expected ID for the task to have.
-            exp_creation_date: Expected creation date for the task.
-
-        Raises:
-            ValueError if the task was invalid and could not
-            be corrected.
-        """
-        corrected = self._correctTask(task, exp_id, exp_creation_date)
-        if corrected:
-            self.modified[task.id] = task
-
-        self.tasks[task.id] = task
-        cur_id = int(task.id.split('_')[-1])
-        self.max_id = max(self.max_id, cur_id)
-
-    def removeTask(self, task):
-        """ Remove a task.
-
-        This task will be deleted from disk on the next flush.
-
-        Args:
-            task: The ID of the task to delete.
-
-        Raises:
-            KeyError if no matching task was in this project.
-        """
-        self.deletions[task] = self.tasks[task]
-        del self.tasks[task]
-
-    def _correctTask(self, t, exp_id, exp_creation_date='', creator=''):
-        """ Correct a task's metadata.
-
-        Args:
-            t: Task to be corrected.
-            exp_id: Expected ID of the task.
-            creation_date: Expected original creation date.
-            creator: Expected creator of the task.
-
-        Returns:
-            True if the task required a correction. False otherwise.
-
-        Raise:
-            ValueError if the task was invalid and therefore uncorrectable.
-        """
-        corrected = False
-
-        # Default the creation_date to 'today'
-        if 'creation_date' not in t.attributes:
-            t.attributes['creation_date'] = 'now'
-            corrected = True
-
-        # Ensure the creation_date isn't modified.
-        if exp_creation_date and t.creation_date != exp_creation_date:
-            t.creation_date = exp_creation_date
-            corrected = True
-
-        # Ensure each task has a creator field.
-        if 'creator' not in t.attributes or (creator and creator != t.creator):
-            t.attributes['creator'] = creator
-            corrected = True
-
-        # Correct the ID.
-        if 'id' not in t.attributes or (exp_id and t.id != exp_id):
-            t.attributes['id'] = exp_id
-            corrected = True
-
-        # Each task should have links to other tasks
-        if 'links' not in t.attributes or t.links is None:
-            t.attributes['links'] = {}
-            corrected = True
-
-        # The task always belongs to this project.
-        if 'project' not in t.attributes or t.project != self.name:
-            t.attributes['project'] = self.name
-            corrected = True
-
-        # All tasks must have tags as a list.
-        if 'tags' not in t.attributes or type(t.tags) is not list:
-            t.attributes['tags'] = []
-            corrected = True
-
-        # The ID should prefix the title
-        if not t.title.startswith(t.id):
-            title = t.title.split(':', maxsplit=1)[-1].strip()
-            t.title = f'{t.id}: {title}'
-            corrected = True
-
-        # Ensure the task has all expected default attributes.
-        for k, v in self.settings['default_attributes'].items():
-            if k not in t.attributes or (t.attributes[k] is None and v is not None):
-                t.attributes[k] = v
-                corrected = True
-
-        return corrected
-
-    def createTask(self,
-        creator, title='', description='', attrs=None,
-        creation_date='now', editor=''):
+    def createTask(self, path, title):
         """ Create a new task for this project.
 
         The task will also be written to disk.
 
         Args:
             creator: Username of the person creating the task.
-            editor: Open the task for editing in the specified editor.
             title: Optional title of the new task.
-            description: Optional description of the new task.
-            attrs: Additional desired attrs of the task. creator,
-                creation_date, id, and the project name cannot be overridden.
-            creation_date: Force a particular creation date. Useful if using
-                this function to move a task from one project to another one.
 
         Returns:
             A reference to the newly created task.
@@ -424,135 +146,19 @@ class Project:
         Raises:
             ValueError if the task was invalid.
         """
-        attrs = attrs or {}
+        fmt = self.settings['zettel_format']
+        title = title or 'MyNewZettel'
+        if 'task_prefix' in self.settings:
+            newid = 1
+            prefix = self.settings['task_prefix']
+            while os.path.exists(f'{path}/{prefix}-{newid}.{fmt}'):
+                newid += 1
 
-        # Set default attributes
-        attrs.update(self.settings['default_attributes'])
+            title = f'{prefix}-{newid}'
 
-        attrs['creator'] = creator
-        attrs['creation_date'] = creation_date
-        attrs['id'] = self.settings['task_prefix'] + '_' + str(self.max_id + 1)
+        path = f'{path}/{title}.{fmt}'
 
-        task = Task(title, description, attrs)
-        self.addTask(task)
+        z = create_zettel(path, title=f'{title}', zettel_format=fmt)
 
-        self.updateTask(task, editor)
-        return task
-
-    def updateTask(self, task, editor=''):
-        """ Add a task to this project or modify an existing one.
-
-        If the new task has a conflicting ID with an existing task, then the
-        existing task will be overwritten.
-
-        Args:
-            task: Task to update.
-            editor: Path to editor to edit the task.
-
-        Returns:
-            A reference to the updated task.
-        """
-
-        # A task's ID and creator should not be modifiable.
-        orig_id = task.id
-        orig_creation_date = task.creation_date
-        orig_creator = task.creator
-
-        if editor:
-            text = editTask(task, editor)
-            try:
-                task = Task.createFromRst(text)
-            except ValueError as ve:
-                with open(f'task.bkp.rst', 'w') as f:
-                    f.write(text.strip() + '\n')
-                raise ValueError(
-                    f'The created task was invalid. Your text has been '
-                    f'saved to task.bkp.rst.\n'
-                    f'Reason: {ve}')
-
-        self._correctTask(task, orig_id, orig_creation_date, orig_creator)
-
-        self.tasks[task.id] = task
-        self.modified[task.id] = task
-
-        cur_id = int(task.id.split('_')[-1])
-        self.max_id = max(self.max_id, cur_id)
-
-    def addProject(self, name, creator, conf=''):
-        """ Add a new project under this project.
-
-        The project will be created on disk if it doesn't exist.
-
-        Args:
-            name: Name of the project.
-            creator: Person who created it.
-            conf: Optional beginning project configuration.
-
-        Returns:
-            A reference to the newly added project.
-        """
-        try:
-            p = Project.loadFromDisk(f'{self.path}/{name}')
-        except ValueError:
-            p = None
-
-        if not p:
-            p = Project.initOnDisk(f'{self.path}/{name}', creator, conf)
-
-        self.projects[name] = p
-        return p
-
-    def flush(self):
-        """ Write changes to this project back to disk.
-        """
-        for id_, task in self.modified.items():
-            with open(f'{self.path}/{id_}.rst', 'w') as f:
-                f.write(task.getRst())
-
-        self.modified = {}
-
-        for task in self.deletions:
-            os.remove(f'{self.path}/{task}.rst')
-
-        self.deletions = {}
-
-    def filteredTasks(self, filter='', root=''):
-        """ Generator for iterating over filtered tasks.
-
-        Use it like this
-
-            for p, tasks in project.filteredTasks(filter_str):
-                # Do something
-
-        Args:
-            filter: String to filter on. t is the task reference for each t
-                in tasks. This filter must follow python3 conditional syntax.
-            root: The caller should provide this to indicate the relative path
-                from where they loaded the project. Project instances don't
-                store this information.
-
-        Returns:
-            Each yield returns a tuple of project, path, tasks. Project is
-            this project's reference. path is the recursive path taken down
-            to the current level from the caller. tasks is the list of tasks
-            which matched the filter.
-        """
-        filter = filter or 'True'
-
-        tasks = [t for t in self.tasks.values() if eval(filter)]
-        yield self, root, sorted(tasks)
-
-        for k in sorted(self.projects):
-            yield from self.projects[k].filteredTasks(filter, f'{root}/{k}')
-
-    def __getattr__(self, key):
-        """ Expose keys in values as attributes.
-        """
-        if key in self.__dict__:
-            return self.__dict__[key]
-        elif key in self.projects:
-            return self.projects[key]
-        elif key in self.tasks:
-            return self.tasks[key]
-
-        raise AttributeError(f"'Project' object has no attribute {key}")
+        self.tasks.append(z)
+        return z

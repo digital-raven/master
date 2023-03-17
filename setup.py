@@ -20,6 +20,7 @@ if 'DEBBUILD' not in os.environ:
         'argcomplete >= 1.0',
         'libzet',
         'pyyaml',
+        'recurring-ical-events',
     ]
 
 setup(

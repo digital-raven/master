@@ -14,8 +14,15 @@ SYNOPSIS
 
 DESCRIPTION
 ===========
-Master is a program for command-line project management with a ticketing system
-that can to scale up for collaborative teams and down for individuals.
+Master is a program for command-line knowledge management program.
+
+Key features:
+- Notes are stored in markdown or rst format on the filesystem.
+- Notes may be created from templates.
+- Notes may be filtered and edited in bulk.
+
+To start to learn how to generally use master, start by reading the man
+page for **master init**.
 
 OPTIONS
 =======
@@ -24,24 +31,20 @@ These global options must be specified before the subcommand.
 **-h, --help**
         Show a help message and exit.
 
-**--config** *CONFIG*
-        Select custom configuration file. This configuration file is in ini
-        format, and the default is at ~/.config/master/master.ini.
-
-**--root** *ROOT*
-        Specify a custom root master directory to operate on. This default may
-        be configured in master's config file.
+**--setup**
+        Perform (or redo) the first time setup.
 
 **--version**
         Display the version of master.
 
 
-FAQ
-===
-
-How do you say "hello" in Spanish?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-"Donde hello".
-
 SEE ALSO
 ========
+master-add(1)
+master-cp(1)
+master-edit(1)
+master-init(1)
+master-list(1)
+master-mv(1)
+master-rm(1)
+master-todo(1)

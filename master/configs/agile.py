@@ -8,24 +8,13 @@ agile = """\
 # replaced when the real project configuration is created.
 #
 
-################################################################################
-# List of users who have ultimate access to this project and every
-# project below this level.
-#
-owners:
-  - __DEFAULT_OWNER
+# Default zettel format
+zettel_format: md
+
+# Default headings for new tasks
+headings: []
 
 ################################################################################
-# Name of the project. Will be named after the basename of the
-# containing folder by default.
-#
-project_name: __DEFAULT_PROJECT_NAME
-
-################################################################################
-# Attributes that each new task under this project will have by default. Each
-# task will always have a creation_date, creator, id, project, and tags
-# regardless of the defaults listed here.
-#
 # Agile tasks have attributes geared toward agile practices.
 #
 # Estimate represents the effort a task will require to complete. This value
@@ -48,10 +37,11 @@ project_name: __DEFAULT_PROJECT_NAME
 # Resolution is meant to capture how a task was resolved. "completed" or
 # "won't do" are basic ideas for this value.
 #
-default_attributes:
+attributes:
   assignee:
   sprint:
   estimate:
+  project_name: __DEFAULT_PROJECT_NAME
   time_spent:
   resolution:
   stage: todo
@@ -59,21 +49,7 @@ default_attributes:
   value:
 
 ################################################################################
-# Information related to the project at large.
-#
-project_start_date: today
-current_sprint: 1
-sprint_duration: 2 weeks
-completed_milestones:
-  - project started
-
-################################################################################
-# Used to prefix the IDs of tasks created within the project.
-#
-# This will default to the first few characters of the project's name.
-#
-# If task_prefix is '__date' then new tasks will have their prefixs (and thus
-# their filenames and IDs) be interpreted as a date or datetime.
+# Prefix of the titles of newly created tasks.
 #
 task_prefix: __DEFAULT_PREFIX
 """

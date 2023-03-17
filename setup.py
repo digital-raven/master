@@ -1,5 +1,4 @@
 import os
-import subprocess as sp
 from setuptools import setup, find_packages
 from os import path
 
@@ -19,24 +18,19 @@ install_requires = []
 if 'DEBBUILD' not in os.environ:
     install_requires = [
         'argcomplete >= 1.0',
-        'daily == 0.3.1',
-        'icalendar',
-        'parsedatetime == 2.5',
-        'recurring-ical-events',
+        'libzet',
         'pyyaml',
     ]
 
-version=sp.check_output(['git','describe','--tags'], text=True).strip()
-
 setup(
     name='master',
-    version=version,
-    description='The command-line project manager.',
+    version='0.3.0-alpha',
+    description='Command-line project management.',
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type='text/x-rst',
     url='',
-    author='Bo Cimino',
-    author_email='ciminobo@protonmail.com',
+    author='Logan Reece',
+    author_email='onereddime@protonmail.com',
     packages=find_packages(exclude=['tests']),
     license='GPLv2',
     python_requires='>3, <4',
